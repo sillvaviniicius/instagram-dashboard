@@ -54,6 +54,11 @@
   .kpi .lbl::before{ content:''; width:7px; height:7px; border-radius:50%; background:var(--accent); flex-shrink:0; }
   .kpi .val{ font-family:'Space Grotesk', sans-serif; font-size:32px; font-weight:700; line-height:1; letter-spacing:-0.01em; }
   .kpi .sub{ font-size:12px; color:var(--mint); margin-top:9px; font-weight:600; }
+  .kpi .breakdown{ display:flex; flex-direction:column; gap:5px; margin-top:12px; padding-top:12px; border-top:1px solid var(--line); }
+  .kpi .breakdown .b-row{ display:flex; align-items:center; justify-content:space-between; font-size:12px; }
+  .kpi .breakdown .b-row .b-label{ display:flex; align-items:center; gap:6px; color:var(--ink-muted); }
+  .kpi .breakdown .b-row .b-dot{ width:6px; height:6px; border-radius:50%; flex-shrink:0; }
+  .kpi .breakdown .b-row .b-val{ font-weight:700; }
   .grid-2{ display:grid; grid-template-columns: 1.4fr 1fr; gap:14px; margin-bottom:14px;}
   .card{ background:var(--surface); border-radius:var(--radius); padding:26px; box-shadow:var(--shadow); }
   .card h3{ font-family:'Space Grotesk', sans-serif; font-weight:700; font-size:16.5px; margin:0 0 4px; letter-spacing:-0.005em; }
@@ -226,7 +231,17 @@ function render(data){
     <div class="kpi-grid">
       <div class="kpi"><div class="lbl">Novos seguidores</div><div class="val">+${totals.newFollowers.toLocaleString('pt-BR')}</div><div class="sub">no período</div></div>
       <div class="kpi"><div class="lbl">Alcance total</div><div class="val">${fmtCompact(totals.reach)}</div><div class="sub">contas únicas</div></div>
-      <div class="kpi"><div class="lbl">Interações totais</div><div class="val">${fmtCompact(totals.interactions)}</div><div class="sub">curtidas, coment., salvos, compart.</div></div>
+      <div class="kpi">
+        <div class="lbl">Interações totais</div>
+        <div class="val">${fmtCompact(totals.interactions)}</div>
+        <div class="sub">curtidas, coment., salvos, compart.</div>
+        <div class="breakdown">
+          <div class="b-row"><div class="b-label"><span class="b-dot" style="background:#3452FF;"></span>Curtidas</div><div class="b-val">${fmtCompact(totals.likes)}</div></div>
+          <div class="b-row"><div class="b-label"><span class="b-dot" style="background:#C4C9D4;"></span>Comentários</div><div class="b-val">${fmtCompact(totals.comments)}</div></div>
+          <div class="b-row"><div class="b-label"><span class="b-dot" style="background:#00B37A;"></span>Salvamentos</div><div class="b-val">${fmtCompact(totals.saves)}</div></div>
+          <div class="b-row"><div class="b-label"><span class="b-dot" style="background:#FF5A36;"></span>Compartilhamentos</div><div class="b-val">${fmtCompact(totals.shares)}</div></div>
+        </div>
+      </div>
       <div class="kpi"><div class="lbl">Engajamento médio</div><div class="val">${avgEngagementRate.toFixed(1)}%</div><div class="sub">interações ÷ alcance diário</div></div>
     </div>
 

@@ -201,6 +201,10 @@ async function buildMetrics(dateFrom, dateTo) {
     interactions: sum('total'),
     newFollowers: sum('followers'),
     profileLinkTaps: sum('profileLinkTaps'),
+    likes: sum('likes'),
+    comments: sum('comments'),
+    saves: sum('saves'),
+    shares: sum('shares'),
   };
   const avgEngagementRate = daily.length
     ? (daily.reduce((acc, d) => acc + (d.reach ? (d.total / d.reach) * 100 : 0), 0) / daily.length)
