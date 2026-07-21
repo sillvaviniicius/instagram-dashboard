@@ -409,6 +409,7 @@ function render(data){
       <div class="header-actions">
         <div style="display:flex; gap:8px;">
           <button class="theme-toggle" onclick="toggleTheme()" title="Alternar tema claro/escuro">${document.documentElement.getAttribute('data-theme')==='dark' ? '☀️' : '🌙'}</button>
+          <button class="theme-toggle" id="topRefreshBtn" onclick="load(true)" title="Atualizar todos os dados">↻</button>
           <button class="export-btn" id="exportBtn" onclick="exportPDF()">⬇ Exportar PDF</button>
         </div>
         <div class="profile-stats">
