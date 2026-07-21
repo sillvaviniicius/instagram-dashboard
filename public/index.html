@@ -26,7 +26,9 @@
   .wrap{ max-width:1180px; margin:0 auto; }
   .header{ display:flex; align-items:flex-start; justify-content:space-between; gap:24px; flex-wrap:wrap; padding-bottom:30px; margin-bottom:30px; }
   .profile{ display:flex; align-items:center; gap:18px; }
-  .avatar{ width:60px; height:60px; border-radius:16px; background:linear-gradient(135deg, var(--accent), #7A3CFF); display:flex; align-items:center; justify-content:center; font-family:'Space Grotesk', sans-serif; font-size:21px; font-weight:700; color:#fff; flex-shrink:0; }
+  .avatar{ width:60px; height:60px; border-radius:16px; background:linear-gradient(135deg, var(--accent), #7A3CFF); display:flex; align-items:center; justify-content:center; flex-shrink:0; overflow:hidden; position:relative; }
+  .avatar img{ width:100%; height:100%; object-fit:cover; display:block; }
+  .avatar #avatarFallback{ display:none; align-items:center; justify-content:center; width:100%; height:100%; font-family:'Space Grotesk', sans-serif; font-size:21px; font-weight:700; color:#fff; }
   .profile h1{ font-family:'Space Grotesk', sans-serif; font-weight:700; font-size:24px; margin:0 0 3px; letter-spacing:-0.01em; }
   .profile .handle{ color:var(--accent); font-weight:600; font-size:13.5px; }
   .profile .bio{ color:var(--ink-muted); font-size:13px; margin-top:5px; max-width:420px; line-height:1.55; }
@@ -35,6 +37,17 @@
   .profile-stats .num{ font-family:'Space Grotesk', sans-serif; font-size:20px; font-weight:700; }
   .profile-stats .lbl{ font-size:10.5px; color:var(--ink-faint); text-transform:uppercase; letter-spacing:0.08em; margin-top:2px; }
   .period-tag{ font-size:11px; color:var(--ink-faint); text-transform:uppercase; letter-spacing:0.09em; margin-top:8px; }
+  .period-bar{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; background:var(--surface); border-radius:14px; padding:10px 14px; box-shadow:var(--shadow); margin-bottom:26px; }
+  .period-presets{ display:flex; gap:6px; }
+  .period-btn{ background:var(--surface-2); border:none; color:var(--ink-muted); font-size:12px; font-weight:600; padding:8px 13px; border-radius:9px; cursor:pointer; }
+  .period-btn:hover{ color:var(--ink); }
+  .period-btn.active{ background:var(--accent); color:#fff; }
+  .period-divider{ width:1px; height:22px; background:var(--line); margin:0 2px; }
+  .period-custom{ display:flex; align-items:center; gap:8px; }
+  .period-custom input[type="date"]{ font-family:'Inter', sans-serif; font-size:12.5px; color:var(--ink); background:var(--surface-2); border:none; border-radius:9px; padding:7px 10px; }
+  .period-custom span{ color:var(--ink-faint); font-size:12px; }
+  .period-apply{ background:var(--ink); color:#fff; border:none; font-size:12px; font-weight:600; padding:8px 14px; border-radius:9px; cursor:pointer; }
+  .period-apply:hover{ background:var(--accent); }
   .kpi-grid{ display:grid; grid-template-columns:repeat(4, 1fr); gap:14px; margin-bottom:28px; }
   .kpi{ background:var(--surface); border-radius:var(--radius); padding:22px 22px 20px; box-shadow:var(--shadow); }
   .kpi .lbl{ display:flex; align-items:center; gap:7px; font-size:11.5px; color:var(--ink-muted); text-transform:uppercase; letter-spacing:0.06em; margin-bottom:12px; font-weight:600; }
@@ -109,10 +122,29 @@ const gridColor = 'rgba(20,22,28,0.06)';
 const fmtCompact = n => n>=1000 ? (n/1000).toFixed(n>=10000?0:1).replace('.0','')+'K' : n;
 const initials = name => (name||'?').split(' ').map(w=>w[0]).slice(0,2).join('').toUpperCase();
 
+let currentRange = { from: null, to: null }; // null = padrão (últimos 30 dias)
+
+function toISODate(d){ return d.toISOString().slice(0,10); }
+
+function periodLabel(period, dayCount){
+  if (!period || !period.from || !period.to) return `Últimos ${dayCount} dias`;
+  const from = new Date(period.from + 'T00:00:00');
+  const to = new Date(period.to + 'T00:00:00');
+  const fmt = d => d.toLocaleDateString('pt-BR', { day:'2-digit', month:'2-digit', year:'numeric' });
+  if (period.from === period.to) return fmt(from);
+  return `${fmt(from)} – ${fmt(to)}`;
+}
+
 async function load(force=false){
   const app = document.getElementById('app');
   try{
-    const res = await fetch('/api/metrics' + (force ? '?refresh=1' : ''));
+    const params = new URLSearchParams();
+    if (force) params.set('refresh', '1');
+    if (currentRange.from && currentRange.to){
+      params.set('date_from', currentRange.from);
+      params.set('date_to', currentRange.to);
+    }
+    const res = await fetch('/api/metrics?' + params.toString());
     if(!res.ok) throw new Error('Erro ' + res.status);
     const data = await res.json();
     render(data);
@@ -122,9 +154,30 @@ async function load(force=false){
   }
 }
 
+function setPreset(days){
+  const to = new Date();
+  const from = new Date();
+  from.setDate(from.getDate() - (days - 1));
+  currentRange = { from: toISODate(from), to: toISODate(to) };
+  load();
+}
+
+function applyCustomRange(){
+  const from = document.getElementById('dateFrom').value;
+  const to = document.getElementById('dateTo').value;
+  if (!from || !to){ alert('Escolha as duas datas.'); return; }
+  if (from > to){ alert('A data inicial precisa ser antes da data final.'); return; }
+  currentRange = { from, to };
+  load();
+}
+
 function render(data){
-  const { profile, daily, topPosts, topByRate, mediaTypeBreakdown, bestTimes, audience, stories, totals, avgEngagementRate, generatedAt } = data;
+  const { profile, period, daily, topPosts, topByRate, mediaTypeBreakdown, bestTimes, audience, stories, totals, avgEngagementRate, generatedAt } = data;
   window.__currentUsername = profile.username || 'instagram';
+  const rangeDays = currentRange.from && currentRange.to
+    ? Math.round((new Date(currentRange.to) - new Date(currentRange.from)) / 86400000) + 1
+    : 30;
+  const activePreset = [1,7,30,90].includes(rangeDays) ? rangeDays : null;
   const labels = daily.map(d => {
     const dt = new Date(d.date);
     return `${String(dt.getDate()).padStart(2,'0')}/${String(dt.getMonth()+1).padStart(2,'0')}`;
@@ -133,12 +186,15 @@ function render(data){
   document.getElementById('app').innerHTML = `
     <div class="header">
       <div class="profile">
-        <div class="avatar">${initials(profile.name)}</div>
+        <div class="avatar" id="avatarWrap">
+          <img src="/avatar.jpg" alt="" onerror="this.style.display='none'; document.getElementById('avatarFallback').style.display='flex';">
+          <span id="avatarFallback">${initials(profile.name)}</span>
+        </div>
         <div>
           <h1>${profile.name || 'Conta do Instagram'}</h1>
           <div class="handle">@${profile.username}</div>
           <div class="bio">${profile.bio ? profile.bio.split('\\n')[0] : ''}</div>
-          <div class="period-tag">Últimos 30 dias · atualizado ${new Date(generatedAt).toLocaleString('pt-BR')}</div>
+          <div class="period-tag">${periodLabel(period, daily.length)} · atualizado ${new Date(generatedAt).toLocaleString('pt-BR')}</div>
         </div>
       </div>
       <div class="header-actions">
@@ -151,8 +207,24 @@ function render(data){
       </div>
     </div>
 
+    <div class="period-bar">
+      <div class="period-presets" id="periodPresets">
+        <button class="period-btn${activePreset===1?' active':''}" onclick="setPreset(1)">Hoje</button>
+        <button class="period-btn${activePreset===7?' active':''}" onclick="setPreset(7)">7 dias</button>
+        <button class="period-btn${activePreset===30?' active':''}" onclick="setPreset(30)">30 dias</button>
+        <button class="period-btn${activePreset===90?' active':''}" onclick="setPreset(90)">90 dias</button>
+      </div>
+      <div class="period-divider"></div>
+      <div class="period-custom">
+        <input type="date" id="dateFrom" value="${period?.from || ''}">
+        <span>até</span>
+        <input type="date" id="dateTo" value="${period?.to || ''}">
+        <button class="period-apply" onclick="applyCustomRange()">Aplicar</button>
+      </div>
+    </div>
+
     <div class="kpi-grid">
-      <div class="kpi"><div class="lbl">Novos seguidores</div><div class="val">+${totals.newFollowers.toLocaleString('pt-BR')}</div><div class="sub">últimos 30 dias</div></div>
+      <div class="kpi"><div class="lbl">Novos seguidores</div><div class="val">+${totals.newFollowers.toLocaleString('pt-BR')}</div><div class="sub">no período</div></div>
       <div class="kpi"><div class="lbl">Alcance total</div><div class="val">${fmtCompact(totals.reach)}</div><div class="sub">contas únicas</div></div>
       <div class="kpi"><div class="lbl">Interações totais</div><div class="val">${fmtCompact(totals.interactions)}</div><div class="sub">curtidas, coment., salvos, compart.</div></div>
       <div class="kpi"><div class="lbl">Engajamento médio</div><div class="val">${avgEngagementRate.toFixed(1)}%</div><div class="sub">interações ÷ alcance diário</div></div>

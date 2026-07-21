@@ -12,7 +12,7 @@ if (!WINDSOR_API_KEY) {
   console.error('ERRO: defina WINDSOR_API_KEY nas variáveis de ambiente (.env ou no painel do host).');
 }
 
-let cache = { data: null, fetchedAt: 0 };
+// cache é feito por período (ver cacheStore mais abaixo)
 
 const BASE_URL = 'https://connectors.windsor.ai/instagram';
 
@@ -45,20 +45,24 @@ async function safeFetch(fields, extraParams, label) {
   }
 }
 
-async function buildMetrics() {
+async function buildMetrics(dateFrom, dateTo) {
+  const rangeParams = dateFrom && dateTo
+    ? { date_from: dateFrom, date_to: dateTo }
+    : { date_preset: 'last_30d' };
+
   // 1. Info do perfil
   const profileRows = await fetchWindsor([
     'account_name', 'username', 'followers_count', 'follows_count', 'media_count', 'biography',
   ]);
   const profile = profileRows[0] || {};
 
-  // 2. Série diária (últimos 30 dias)
+  // 2. Série diária (período selecionado)
   const dailyRows = await fetchWindsor(
     [
       'date', 'reach_1d', 'total_interactions', 'likes', 'comments', 'saves',
       'shares', 'views', 'accounts_engaged', 'follower_count_1d', 'profile_links_taps',
     ],
-    { date_preset: 'last_30d' }
+    rangeParams
   );
   const daily = dailyRows
     .map(r => ({
@@ -82,7 +86,7 @@ async function buildMetrics() {
       'media_like_count', 'media_comments_count', 'media_reach', 'media_views',
       'media_saved', 'media_shares', 'media_engagement',
     ],
-    { date_preset: 'last_30d', date_filters: JSON.stringify({ media_info: 'timestamp' }) }
+    { ...rangeParams, date_filters: JSON.stringify({ media_info: 'timestamp' }) }
   );
 
   const allPosts = mediaRows.map(r => {
@@ -174,10 +178,10 @@ async function buildMetrics() {
       .slice(0, 6),
   };
 
-  // 7. Stories dos últimos 30 dias
+  // 7. Stories do período selecionado
   const storyRows = await safeFetch(
     ['story_id', 'story_views', 'story_reach', 'story_replies', 'story_exits', 'story_interactions', 'story_timestamp'],
-    { date_preset: 'last_30d', date_filters: JSON.stringify({ story_info: 'story_timestamp' }) },
+    { ...rangeParams, date_filters: JSON.stringify({ story_info: 'story_timestamp' }) },
     'stories'
   );
   const stories = {
@@ -211,6 +215,10 @@ async function buildMetrics() {
       posts: Number(profile.media_count) || 0,
       bio: profile.biography || '',
     },
+    period: {
+      from: dateFrom || (daily[0] && daily[0].date) || null,
+      to: dateTo || (daily[daily.length - 1] && daily[daily.length - 1].date) || null,
+    },
     daily,
     topPosts,
     topByRate,
@@ -224,15 +232,34 @@ async function buildMetrics() {
   };
 }
 
+const cacheStore = new Map(); // chave "from|to" -> { data, fetchedAt }
+
+function isValidDate(s) {
+  return typeof s === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(s) && !isNaN(new Date(s));
+}
+
 app.get('/api/metrics', async (req, res) => {
   try {
-    const now = Date.now();
-    const forceRefresh = req.query.refresh === '1';
-    if (!cache.data || forceRefresh || now - cache.fetchedAt > CACHE_TTL_MS) {
-      cache.data = await buildMetrics();
-      cache.fetchedAt = now;
+    let { date_from, date_to, refresh } = req.query;
+    if (date_from && !isValidDate(date_from)) date_from = undefined;
+    if (date_to && !isValidDate(date_to)) date_to = undefined;
+    // se só uma das datas veio, ignora as duas e cai no padrão de 30 dias
+    if ((date_from && !date_to) || (!date_from && date_to)) {
+      date_from = undefined;
+      date_to = undefined;
     }
-    res.json(cache.data);
+
+    const cacheKey = `${date_from || ''}|${date_to || ''}`;
+    const now = Date.now();
+    const forceRefresh = refresh === '1';
+    const entry = cacheStore.get(cacheKey);
+
+    if (!entry || forceRefresh || now - entry.fetchedAt > CACHE_TTL_MS) {
+      const data = await buildMetrics(date_from, date_to);
+      cacheStore.set(cacheKey, { data, fetchedAt: now });
+      return res.json(data);
+    }
+    res.json(entry.data);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Falha ao buscar dados do Windsor.ai', details: err.message });

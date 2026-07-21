@@ -39,6 +39,20 @@ Abra http://localhost:3000
 Alternativas equivalentes: **Railway.app**, **Fly.io**, ou **Vercel**
 (usando este server.js como uma função serverless).
 
+## Adicionar sua foto de perfil
+
+O Instagram não libera a foto de perfil pela API usada aqui, então você
+adiciona a sua manualmente:
+
+1. Salve sua foto com o nome exato **`avatar.jpg`** (formato quadrado, ex:
+   400x400px, fica melhor)
+2. Coloque o arquivo dentro da pasta **`public/`**, junto do `index.html`
+3. Suba pro GitHub (arraste o `avatar.jpg` junto com os outros arquivos no
+   "Add file → Upload files")
+
+Se o arquivo não existir, o dashboard volta a mostrar as iniciais do nome
+automaticamente — nada quebra.
+
 ## Como funciona
 
 - `GET /api/metrics` chama a API do Windsor.ai
