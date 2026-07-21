@@ -145,7 +145,12 @@ const initials = name => (name||'?').split(' ').map(w=>w[0]).slice(0,2).join('')
 
 let currentRange = { from: null, to: null }; // null = padrão (últimos 30 dias)
 
-function toISODate(d){ return d.toISOString().slice(0,10); }
+function toISODate(d){
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
 
 function periodLabel(period, dayCount){
   if (!period || !period.from || !period.to) return `Últimos ${dayCount} dias`;
@@ -457,7 +462,7 @@ async function exportPDF(){
       heightLeft -= pageHeight;
     }
 
-    const dateStr = new Date().toISOString().slice(0, 10);
+    const dateStr = toISODate(new Date());
     pdf.save(`dashboard-instagram-${window.__currentUsername}-${dateStr}.pdf`);
   } catch (err) {
     alert('Não foi possível gerar o PDF: ' + err.message);
