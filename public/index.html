@@ -129,7 +129,7 @@
   .header-actions{ display:flex; flex-direction:column; align-items:flex-end; gap:16px; }
   .grid-3{ display:grid; grid-template-columns:1fr 1fr 1fr; gap:14px; margin-bottom:14px; }
   .bar-row{ display:flex; align-items:center; gap:10px; margin-bottom:11px; font-size:12.5px; }
-  .bar-row .bar-label{ width:76px; flex-shrink:0; color:var(--ink-muted); font-weight:500; }
+  .bar-row .bar-label{ width:150px; flex-shrink:0; color:var(--ink-muted); font-weight:500; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   .bar-row .bar-track{ flex:1; height:7px; background:var(--surface-2); border-radius:6px; overflow:hidden; }
   .bar-row .bar-fill{ height:100%; background:var(--accent); border-radius:6px; }
   .bar-row .bar-val{ width:46px; text-align:right; flex-shrink:0; font-weight:700; }
@@ -577,6 +577,19 @@ function render(data){
       <div id="countryBars"></div>
     </div>
 
+    <div class="grid-2">
+      <div class="card">
+        <h3>Principais estados/regiões</h3>
+        <div class="desc">Derivado a partir das cidades (o Instagram não libera "estado" diretamente)</div>
+        <div id="stateBars"></div>
+      </div>
+      <div class="card">
+        <h3>Principais cidades dos seguidores</h3>
+        <div class="desc">Top 10 cidades por número de seguidores</div>
+        <div id="cityBars"></div>
+      </div>
+    </div>
+
     <div class="section-title">Anotações</div>
     <div class="section-desc">Marque datas importantes — campanhas, lançamentos, eventos — pra cruzar com os gráficos depois</div>
     <div class="card">
@@ -792,7 +805,7 @@ function render(data){
     const max = Math.max(...items.map(i => i.value), 1);
     return items.map(i => `
       <div class="bar-row">
-        <div class="bar-label">${i.name}</div>
+        <div class="bar-label" title="${escapeHTML(i.name)}">${escapeHTML(i.name)}</div>
         <div class="bar-track"><div class="bar-fill" style="width:${(i.value/max*100).toFixed(1)}%"></div></div>
         <div class="bar-val">${fmtCompact(i.value)}</div>
       </div>
@@ -801,6 +814,8 @@ function render(data){
   document.getElementById('ageBars').innerHTML = `<div class="desc" style="margin-bottom:8px;">Faixa etária</div>` + barRows(audience?.age);
   document.getElementById('genderBars').innerHTML = `<div class="desc" style="margin-bottom:8px;">Gênero</div>` + barRows(audience?.gender);
   document.getElementById('countryBars').innerHTML = barRows(audience?.country);
+  document.getElementById('stateBars').innerHTML = barRows(audience?.state);
+  document.getElementById('cityBars').innerHTML = barRows(audience?.city);
 
   // Timeline de posts com miniatura
   document.getElementById('timelineScroll').innerHTML = (timeline||[]).length

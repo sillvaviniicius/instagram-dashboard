@@ -109,6 +109,7 @@ async function buildMetrics(dateFrom, dateTo, forceFresh = false) {
     ageRows,
     genderRows,
     countryRows,
+    cityRows,
     storyRows,
     adsRows,
     adsDailyRows,
@@ -134,6 +135,7 @@ async function buildMetrics(dateFrom, dateTo, forceFresh = false) {
     safeFetch(['audience_age_name', 'audience_age_size'], {}, 'demografia (idade)', forceFresh),
     safeFetch(['audience_gender_name', 'audience_gender_size'], {}, 'demografia (gênero)', forceFresh),
     safeFetch(['audience_country_name', 'audience_country_size'], {}, 'demografia (país)', forceFresh),
+    safeFetch(['city', 'audience_city_size'], {}, 'demografia (cidade)', forceFresh),
     safeFetch(
       ['story_id', 'story_views', 'story_reach', 'story_replies', 'story_exits', 'story_interactions', 'story_timestamp'],
       { ...rangeParams, date_filters: JSON.stringify({ story_info: 'story_timestamp' }) },
@@ -256,6 +258,28 @@ async function buildMetrics(dateFrom, dateTo, forceFresh = false) {
       .filter(r => r.name)
       .sort((a, b) => b.value - a.value)
       .slice(0, 6),
+    city: cityRows
+      .map(r => ({ name: r.city, value: Number(r.audience_city_size) || 0 }))
+      .filter(r => r.name)
+      .sort((a, b) => b.value - a.value)
+      .slice(0, 10),
+    // O Instagram não libera "estado" diretamente — mas o campo de cidade
+    // vem como "Cidade, Estado", então derivamos o estado juntando as
+    // cidades por essa segunda parte do nome.
+    state: (() => {
+      const groups = {};
+      cityRows.forEach(r => {
+        if (!r.city) return;
+        const parts = String(r.city).split(',');
+        const rawState = parts.length > 1 ? parts[parts.length - 1].trim() : 'Outro';
+        const stateName = rawState.replace(/\s*\(state\)$/i, '');
+        groups[stateName] = (groups[stateName] || 0) + (Number(r.audience_city_size) || 0);
+      });
+      return Object.entries(groups)
+        .map(([name, value]) => ({ name, value }))
+        .sort((a, b) => b.value - a.value)
+        .slice(0, 10);
+    })(),
   };
 
   // 7. Stories do período selecionado
