@@ -38,13 +38,13 @@ app.use(checkAuth);
 const BASE_URL = 'https://connectors.windsor.ai/instagram';
 const ADS_BASE_URL = 'https://connectors.windsor.ai/facebook';
 
-async function fetchWindsor(fields, extraParams = {}) {
+async function fetchWindsor(fields, extraParams = {}, bustCache = false) {
   const params = new URLSearchParams({
     api_key: WINDSOR_API_KEY,
     fields: fields.join(','),
     ...extraParams,
-    _cb: Date.now(), // evita o cache interno do Windsor.ai (até 6h por URL exata)
   });
+  if (bustCache) params.set('_cb', Date.now()); // evita o cache interno do Windsor.ai (até 6h por URL exata)
   const url = `${BASE_URL}?${params.toString()}`;
   const res = await fetch(url);
   if (!res.ok) {
@@ -56,13 +56,13 @@ async function fetchWindsor(fields, extraParams = {}) {
   return json.data || json;
 }
 
-async function fetchWindsorAds(fields, extraParams = {}) {
+async function fetchWindsorAds(fields, extraParams = {}, bustCache = false) {
   const params = new URLSearchParams({
     api_key: WINDSOR_API_KEY,
     fields: fields.join(','),
     ...extraParams,
-    _cb: Date.now(), // evita o cache interno do Windsor.ai (até 6h por URL exata)
   });
+  if (bustCache) params.set('_cb', Date.now()); // evita o cache interno do Windsor.ai (até 6h por URL exata)
   const url = `${ADS_BASE_URL}?${params.toString()}`;
   const res = await fetch(url);
   if (!res.ok) {
@@ -76,25 +76,25 @@ async function fetchWindsorAds(fields, extraParams = {}) {
 const WEEKDAYS_PT = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
 
 // Busca algo e devolve [] em caso de erro, sem derrubar o dashboard inteiro
-async function safeFetch(fields, extraParams, label) {
+async function safeFetch(fields, extraParams, label, bustCache = false) {
   try {
-    return await fetchWindsor(fields, extraParams);
+    return await fetchWindsor(fields, extraParams, bustCache);
   } catch (err) {
     console.error(`[aviso] falha ao buscar "${label}":`, err.message);
     return [];
   }
 }
 
-async function safeFetchAds(fields, extraParams, label) {
+async function safeFetchAds(fields, extraParams, label, bustCache = false) {
   try {
-    return await fetchWindsorAds(fields, extraParams);
+    return await fetchWindsorAds(fields, extraParams, bustCache);
   } catch (err) {
     console.error(`[aviso] falha ao buscar "${label}":`, err.message);
     return [];
   }
 }
 
-async function buildMetrics(dateFrom, dateTo) {
+async function buildMetrics(dateFrom, dateTo, forceFresh = false) {
   const rangeParams = dateFrom && dateTo
     ? { date_from: dateFrom, date_to: dateTo }
     : { date_preset: 'last_30d' };
@@ -113,13 +113,14 @@ async function buildMetrics(dateFrom, dateTo) {
     adsRows,
     adsDailyRows,
   ] = await Promise.all([
-    fetchWindsor(['account_name', 'username', 'followers_count', 'follows_count', 'media_count', 'biography']),
+    fetchWindsor(['account_name', 'username', 'followers_count', 'follows_count', 'media_count', 'biography'], {}, forceFresh),
     fetchWindsor(
       [
         'date', 'reach_1d', 'total_interactions', 'likes', 'comments', 'saves',
         'shares', 'views', 'accounts_engaged', 'follower_count_1d', 'profile_links_taps',
       ],
-      rangeParams
+      rangeParams,
+      forceFresh
     ),
     fetchWindsor(
       [
@@ -127,15 +128,17 @@ async function buildMetrics(dateFrom, dateTo) {
         'media_like_count', 'media_comments_count', 'media_reach', 'media_views',
         'media_saved', 'media_shares', 'media_engagement', 'media_url', 'media_thumbnail_url',
       ],
-      { ...rangeParams, date_filters: JSON.stringify({ media_info: 'timestamp' }) }
+      { ...rangeParams, date_filters: JSON.stringify({ media_info: 'timestamp' }) },
+      forceFresh
     ),
-    safeFetch(['audience_age_name', 'audience_age_size'], {}, 'demografia (idade)'),
-    safeFetch(['audience_gender_name', 'audience_gender_size'], {}, 'demografia (gênero)'),
-    safeFetch(['audience_country_name', 'audience_country_size'], {}, 'demografia (país)'),
+    safeFetch(['audience_age_name', 'audience_age_size'], {}, 'demografia (idade)', forceFresh),
+    safeFetch(['audience_gender_name', 'audience_gender_size'], {}, 'demografia (gênero)', forceFresh),
+    safeFetch(['audience_country_name', 'audience_country_size'], {}, 'demografia (país)', forceFresh),
     safeFetch(
       ['story_id', 'story_views', 'story_reach', 'story_replies', 'story_exits', 'story_interactions', 'story_timestamp'],
       { ...rangeParams, date_filters: JSON.stringify({ story_info: 'story_timestamp' }) },
-      'stories'
+      'stories',
+      forceFresh
     ),
     safeFetchAds(
       [
@@ -143,9 +146,10 @@ async function buildMetrics(dateFrom, dateTo) {
         'spend', 'impressions', 'clicks', 'reach', 'actions_lead',
       ],
       rangeParams,
-      'tráfego pago (Meta Ads)'
+      'tráfego pago (Meta Ads)',
+      forceFresh
     ),
-    safeFetchAds(['date', 'spend'], rangeParams, 'investimento diário (Meta Ads)'),
+    safeFetchAds(['date', 'spend'], rangeParams, 'investimento diário (Meta Ads)', forceFresh),
   ]);
 
   // 1. Info do perfil
@@ -300,7 +304,8 @@ async function buildMetrics(dateFrom, dateTo) {
     const prevRows = await safeFetch(
       ['date', 'reach_1d', 'total_interactions', 'follower_count_1d'],
       { date_from: prevFrom, date_to: prevTo },
-      'período anterior'
+      'período anterior',
+      forceFresh
     );
     const prevDaily = prevRows.map(r => ({
       reach: Number(r.reach_1d) || 0,
@@ -488,7 +493,7 @@ app.get('/api/metrics', async (req, res) => {
     const entry = cacheStore.get(cacheKey);
 
     if (!entry || forceRefresh || now - entry.fetchedAt > CACHE_TTL_MS) {
-      const data = await buildMetrics(date_from, date_to);
+      const data = await buildMetrics(date_from, date_to, forceRefresh);
       cacheStore.set(cacheKey, { data, fetchedAt: now });
       return res.json(data);
     }

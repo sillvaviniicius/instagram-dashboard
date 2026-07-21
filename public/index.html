@@ -341,6 +341,13 @@ function periodLabel(period, dayCount){
 
 async function load(force=false){
   const app = document.getElementById('app');
+  if (force) {
+    document.querySelectorAll('.refresh-btn, #topRefreshBtn').forEach(el => {
+      el.disabled = true;
+      el.dataset.originalHtml = el.innerHTML;
+      el.innerHTML = el.id === 'topRefreshBtn' ? '…' : 'Buscando dados atualizados…';
+    });
+  }
   try{
     const params = new URLSearchParams();
     if (force) params.set('refresh', '1');
