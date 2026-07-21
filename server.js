@@ -12,6 +12,27 @@ if (!WINDSOR_API_KEY) {
   console.error('ERRO: defina WINDSOR_API_KEY nas variáveis de ambiente (.env ou no painel do host).');
 }
 
+// Proteção por senha (opcional). Se DASHBOARD_PASSWORD não estiver definida,
+// o dashboard fica público sem pedir login.
+const DASHBOARD_PASSWORD = process.env.DASHBOARD_PASSWORD;
+
+function checkAuth(req, res, next) {
+  if (!DASHBOARD_PASSWORD) return next();
+
+  const auth = req.headers.authorization;
+  if (auth && auth.startsWith('Basic ')) {
+    const decoded = Buffer.from(auth.slice(6), 'base64').toString('utf8');
+    const separatorIndex = decoded.indexOf(':');
+    const pass = separatorIndex === -1 ? decoded : decoded.slice(separatorIndex + 1);
+    if (pass === DASHBOARD_PASSWORD) return next();
+  }
+
+  res.set('WWW-Authenticate', 'Basic realm="Dashboard Instagram", charset="UTF-8"');
+  res.status(401).send('Acesso restrito. Informe a senha para continuar.');
+}
+
+app.use(checkAuth);
+
 // cache é feito por período (ver cacheStore mais abaixo)
 
 const BASE_URL = 'https://connectors.windsor.ai/instagram';

@@ -39,6 +39,22 @@ Abra http://localhost:3000
 Alternativas equivalentes: **Railway.app**, **Fly.io**, ou **Vercel**
 (usando este server.js como uma função serverless).
 
+## Adicionar senha de acesso
+
+Por padrão o dashboard fica público para quem tiver o link. Se quiser
+proteger com senha:
+
+1. No painel do Render, vá em **Environment**
+2. Adicione a variável:
+   - **Key:** `DASHBOARD_PASSWORD`
+   - **Value:** a senha que você quiser
+3. Salve — o Render redesenha automaticamente
+
+A partir daí, ao abrir o link, o navegador vai pedir usuário/senha (pode
+deixar o campo de usuário em branco ou preencher qualquer coisa — só a
+senha é verificada). Para remover a senha depois, é só apagar essa
+variável de ambiente.
+
 ## Adicionar sua foto de perfil
 
 O Instagram não libera a foto de perfil pela API usada aqui, então você
