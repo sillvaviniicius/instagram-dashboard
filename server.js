@@ -97,20 +97,59 @@ async function buildMetrics(dateFrom, dateTo) {
     ? { date_from: dateFrom, date_to: dateTo }
     : { date_preset: 'last_30d' };
 
-  // 1. Info do perfil
-  const profileRows = await fetchWindsor([
-    'account_name', 'username', 'followers_count', 'follows_count', 'media_count', 'biography',
+  // Todas as buscas abaixo são independentes entre si, então disparamos
+  // tudo de uma vez em paralelo em vez de esperar uma terminar pra
+  // começar a próxima — isso é o que faz o dashboard carregar rápido.
+  const [
+    profileRows,
+    dailyRows,
+    mediaRows,
+    ageRows,
+    genderRows,
+    countryRows,
+    storyRows,
+    adsRows,
+    adsDailyRows,
+  ] = await Promise.all([
+    fetchWindsor(['account_name', 'username', 'followers_count', 'follows_count', 'media_count', 'biography']),
+    fetchWindsor(
+      [
+        'date', 'reach_1d', 'total_interactions', 'likes', 'comments', 'saves',
+        'shares', 'views', 'accounts_engaged', 'follower_count_1d', 'profile_links_taps',
+      ],
+      rangeParams
+    ),
+    fetchWindsor(
+      [
+        'media_id', 'media_caption', 'media_type', 'media_permalink', 'timestamp',
+        'media_like_count', 'media_comments_count', 'media_reach', 'media_views',
+        'media_saved', 'media_shares', 'media_engagement', 'media_url', 'media_thumbnail_url',
+      ],
+      { ...rangeParams, date_filters: JSON.stringify({ media_info: 'timestamp' }) }
+    ),
+    safeFetch(['audience_age_name', 'audience_age_size'], {}, 'demografia (idade)'),
+    safeFetch(['audience_gender_name', 'audience_gender_size'], {}, 'demografia (gênero)'),
+    safeFetch(['audience_country_name', 'audience_country_size'], {}, 'demografia (país)'),
+    safeFetch(
+      ['story_id', 'story_views', 'story_reach', 'story_replies', 'story_exits', 'story_interactions', 'story_timestamp'],
+      { ...rangeParams, date_filters: JSON.stringify({ story_info: 'story_timestamp' }) },
+      'stories'
+    ),
+    safeFetchAds(
+      [
+        'account_name', 'account_currency', 'campaign', 'campaign_status', 'objective',
+        'spend', 'impressions', 'clicks', 'reach', 'actions_lead',
+      ],
+      rangeParams,
+      'tráfego pago (Meta Ads)'
+    ),
+    safeFetchAds(['date', 'spend'], rangeParams, 'investimento diário (Meta Ads)'),
   ]);
+
+  // 1. Info do perfil
   const profile = profileRows[0] || {};
 
   // 2. Série diária (período selecionado)
-  const dailyRows = await fetchWindsor(
-    [
-      'date', 'reach_1d', 'total_interactions', 'likes', 'comments', 'saves',
-      'shares', 'views', 'accounts_engaged', 'follower_count_1d', 'profile_links_taps',
-    ],
-    rangeParams
-  );
   const daily = dailyRows
     .map(r => ({
       date: r.date,
@@ -127,15 +166,6 @@ async function buildMetrics(dateFrom, dateTo) {
     .sort((a, b) => new Date(a.date) - new Date(b.date));
 
   // 3. Todos os posts do período (usado para top posts, tipo de mídia, timeline e melhor horário)
-  const mediaRows = await fetchWindsor(
-    [
-      'media_id', 'media_caption', 'media_type', 'media_permalink', 'timestamp',
-      'media_like_count', 'media_comments_count', 'media_reach', 'media_views',
-      'media_saved', 'media_shares', 'media_engagement', 'media_url', 'media_thumbnail_url',
-    ],
-    { ...rangeParams, date_filters: JSON.stringify({ media_info: 'timestamp' }) }
-  );
-
   const allPosts = mediaRows.map(r => {
     const reach = Number(r.media_reach) || 0;
     const engagement = Number(r.media_engagement) || 0;
@@ -206,12 +236,7 @@ async function buildMetrics(dateFrom, dateTo) {
     .sort((a, b) => b.avgReach - a.avgReach)
     .slice(0, 5);
 
-  // 6. Demografia do público (idade, gênero, país) — dados lifetime, buscados à parte
-  const [ageRows, genderRows, countryRows] = await Promise.all([
-    safeFetch(['audience_age_name', 'audience_age_size'], {}, 'demografia (idade)'),
-    safeFetch(['audience_gender_name', 'audience_gender_size'], {}, 'demografia (gênero)'),
-    safeFetch(['audience_country_name', 'audience_country_size'], {}, 'demografia (país)'),
-  ]);
+  // 6. Demografia do público (idade, gênero, país) — dados lifetime
   const audience = {
     age: ageRows
       .map(r => ({ name: r.audience_age_name, value: Number(r.audience_age_size) || 0 }))
@@ -228,11 +253,6 @@ async function buildMetrics(dateFrom, dateTo) {
   };
 
   // 7. Stories do período selecionado
-  const storyRows = await safeFetch(
-    ['story_id', 'story_views', 'story_reach', 'story_replies', 'story_exits', 'story_interactions', 'story_timestamp'],
-    { ...rangeParams, date_filters: JSON.stringify({ story_info: 'story_timestamp' }) },
-    'stories'
-  );
   const stories = {
     count: storyRows.length,
     totalViews: storyRows.reduce((a, r) => a + (Number(r.story_views) || 0), 0),
@@ -312,14 +332,6 @@ async function buildMetrics(dateFrom, dateTo) {
   }
 
   // 11. Tráfego pago (Meta Ads — Facebook/Instagram Ads) do período selecionado
-  const adsRows = await safeFetchAds(
-    [
-      'account_name', 'account_currency', 'campaign', 'campaign_status', 'objective',
-      'spend', 'impressions', 'clicks', 'reach', 'actions_lead',
-    ],
-    rangeParams,
-    'tráfego pago (Meta Ads)'
-  );
   const adsCurrency = (adsRows[0] && adsRows[0].account_currency) || 'BRL';
   const campaigns = adsRows
     .map(r => {
@@ -352,7 +364,6 @@ async function buildMetrics(dateFrom, dateTo) {
   };
 
   // Investimento diário (para o gráfico), somando todas as contas/campanhas
-  const adsDailyRows = await safeFetchAds(['date', 'spend'], rangeParams, 'investimento diário (Meta Ads)');
   const adsDaily = adsDailyRows
     .map(r => ({ date: r.date, spend: Number(r.spend) || 0 }))
     .filter(r => r.date)
