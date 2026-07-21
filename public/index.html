@@ -124,6 +124,22 @@ Chart.defaults.color = '#6B7280';
 Chart.defaults.font.family = "'Inter', sans-serif";
 Chart.defaults.font.size = 11;
 const gridColor = 'rgba(20,22,28,0.06)';
+
+// Garante que o eixo X sempre mostre o primeiro e o último dia,
+// distribuindo os rótulos do meio de forma uniforme (em vez do autoSkip
+// padrão do Chart.js, que às vezes corta a data mais recente).
+function evenTicks(desiredCount){
+  return (axis) => {
+    const total = axis.ticks.length;
+    if (total <= desiredCount){ return; }
+    const step = (total - 1) / (desiredCount - 1);
+    const picked = new Set();
+    for (let i = 0; i < desiredCount; i++){
+      picked.add(Math.round(i * step));
+    }
+    axis.ticks = axis.ticks.filter((t, idx) => picked.has(idx));
+  };
+}
 const fmtCompact = n => n>=1000 ? (n/1000).toFixed(n>=10000?0:1).replace('.0','')+'K' : n;
 const initials = name => (name||'?').split(' ').map(w=>w[0]).slice(0,2).join('').toUpperCase();
 
@@ -314,7 +330,7 @@ function render(data){
     ]},
     options:{ responsive:true, maintainAspectRatio:false,
       plugins:{ legend:{ labels:{ boxWidth:10, boxHeight:10, usePointStyle:true, pointStyle:'circle' } } },
-      scales:{ x:{ grid:{ display:false }, ticks:{ maxRotation:0, autoSkip:true, maxTicksLimit:8 } },
+      scales:{ x:{ grid:{ display:false }, afterBuildTicks:evenTicks(8), ticks:{ maxRotation:0 } },
                y:{ grid:{ color:gridColor }, ticks:{ callback:v=>fmtCompact(v) } } } }
   });
 
@@ -322,7 +338,7 @@ function render(data){
     type:'bar',
     data:{ labels, datasets:[{ label:'Novos seguidores', data:daily.map(d=>d.followers), backgroundColor:'#3452FF', borderRadius:5, maxBarThickness:14 }] },
     options:{ responsive:true, maintainAspectRatio:false, plugins:{ legend:{ display:false } },
-      scales:{ x:{ grid:{ display:false }, ticks:{ maxRotation:0, autoSkip:true, maxTicksLimit:8 } }, y:{ grid:{ color:gridColor } } } }
+      scales:{ x:{ grid:{ display:false }, afterBuildTicks:evenTicks(8), ticks:{ maxRotation:0 } }, y:{ grid:{ color:gridColor } } } }
   });
 
   new Chart(document.getElementById('engagementChart'), {
@@ -335,7 +351,7 @@ function render(data){
     ]},
     options:{ responsive:true, maintainAspectRatio:false,
       plugins:{ legend:{ labels:{ boxWidth:10, boxHeight:10, usePointStyle:true, pointStyle:'circle' } } },
-      scales:{ x:{ stacked:true, grid:{ display:false }, ticks:{ maxRotation:0, autoSkip:true, maxTicksLimit:10 } },
+      scales:{ x:{ stacked:true, grid:{ display:false }, afterBuildTicks:evenTicks(10), ticks:{ maxRotation:0 } },
                y:{ stacked:true, grid:{ color:gridColor }, ticks:{ callback:v=>fmtCompact(v) } } } }
   });
 
