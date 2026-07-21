@@ -11,17 +11,28 @@
   :root{
     --bg:#F3F4F7; --surface:#FFFFFF; --surface-2:#F1F2F6; --line:#E9EAEF;
     --accent:#3452FF; --accent-soft:rgba(52,82,255,0.09);
-    --coral:#FF5A36; --mint:#00B37A;
+    --coral:#FF5A36; --mint:#00B37A; --red:#E5484D;
     --ink:#14161C; --ink-muted:#6B7280; --ink-faint:#9AA0AC;
     --radius:20px;
     --shadow: 0 1px 2px rgba(20,22,28,0.04), 0 10px 28px rgba(20,22,28,0.06);
     --shadow-hover: 0 4px 10px rgba(20,22,28,0.06), 0 16px 36px rgba(20,22,28,0.10);
   }
+  [data-theme="dark"]{
+    --bg:#0E1116; --surface:#171B22; --surface-2:#1E232C; --line:#2A2F3A;
+    --accent:#5B7FFF; --accent-soft:rgba(91,127,255,0.14);
+    --coral:#FF7A5C; --mint:#2DD4A0; --red:#FF6B6E;
+    --ink:#F3F4F7; --ink-muted:#9AA1AE; --ink-faint:#6B7280;
+    --shadow: 0 1px 2px rgba(0,0,0,0.2), 0 10px 28px rgba(0,0,0,0.28);
+    --shadow-hover: 0 4px 10px rgba(0,0,0,0.25), 0 16px 36px rgba(0,0,0,0.35);
+  }
+  .theme-toggle{ background:var(--surface-2); border:none; color:var(--ink); font-size:15px; width:38px; height:38px; border-radius:10px; cursor:pointer; display:flex; align-items:center; justify-content:center; box-shadow:var(--shadow); }
+  .theme-toggle:hover{ color:var(--accent); }
   *{box-sizing:border-box;}
   @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap');
   body{
     margin:0; background: var(--bg);
     color:var(--ink); font-family:'Inter', sans-serif; padding:44px 24px 90px;
+    transition: background .2s ease, color .2s ease;
   }
   .wrap{ max-width:1180px; margin:0 auto; }
   .header{ display:flex; align-items:flex-start; justify-content:space-between; gap:24px; flex-wrap:wrap; padding-bottom:30px; margin-bottom:30px; }
@@ -105,6 +116,46 @@
   .type-card .t-row{ display:flex; justify-content:space-between; font-size:12px; margin-top:5px; }
   .type-card .t-row span:first-child{ color:var(--ink-faint); }
   .type-card .t-row span:last-child{ font-weight:700; }
+
+  /* Comparação com período anterior */
+  .compare-chip{ display:inline-flex; align-items:center; gap:4px; font-size:11.5px; font-weight:700; margin-top:9px; padding:3px 8px; border-radius:20px; }
+  .compare-chip.up{ color:var(--mint); background:rgba(0,179,122,0.12); }
+  .compare-chip.down{ color:var(--red); background:rgba(229,72,77,0.12); }
+  .compare-chip.flat{ color:var(--ink-faint); background:var(--surface-2); }
+  .compare-note{ font-size:10.5px; color:var(--ink-faint); margin-top:6px; }
+
+  /* Legenda expansível */
+  .post-caption{ font-size:12px; color:var(--ink-muted); line-height:1.4; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+  .post-caption.expanded{ -webkit-line-clamp:unset; }
+  .caption-toggle{ font-size:11px; color:var(--accent); font-weight:600; cursor:pointer; background:none; border:none; padding:0; text-align:left; }
+
+  /* Timeline de posts */
+  .timeline-scroll{ display:flex; gap:12px; overflow-x:auto; padding-bottom:8px; scroll-snap-type:x proximity; }
+  .timeline-scroll::-webkit-scrollbar{ height:6px; }
+  .timeline-scroll::-webkit-scrollbar-thumb{ background:var(--line); border-radius:6px; }
+  .timeline-item{ scroll-snap-align:start; flex:0 0 132px; text-decoration:none; color:var(--ink); }
+  .timeline-thumb{ width:132px; height:132px; border-radius:14px; background:var(--surface-2); overflow:hidden; position:relative; box-shadow:var(--shadow); }
+  .timeline-thumb img{ width:100%; height:100%; object-fit:cover; display:block; }
+  .timeline-thumb .no-thumb{ width:100%; height:100%; display:flex; align-items:center; justify-content:center; color:var(--ink-faint); font-size:11px; text-align:center; padding:10px; }
+  .timeline-thumb .tl-badge{ position:absolute; top:7px; left:7px; font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:0.04em; background:rgba(20,22,28,0.65); color:#fff; padding:3px 7px; border-radius:20px; }
+  .timeline-meta{ margin-top:7px; font-size:11px; }
+  .timeline-meta .tl-date{ color:var(--ink-faint); }
+  .timeline-meta .tl-reach{ font-weight:700; color:var(--ink); margin-top:1px; }
+
+  /* Anotações manuais */
+  .notes-form{ display:flex; gap:8px; flex-wrap:wrap; margin-bottom:18px; }
+  .notes-form input[type="date"]{ font-family:'Inter', sans-serif; font-size:12.5px; color:var(--ink); background:var(--surface-2); border:none; border-radius:9px; padding:9px 10px; }
+  .notes-form input[type="text"]{ flex:1; min-width:200px; font-family:'Inter', sans-serif; font-size:12.5px; color:var(--ink); background:var(--surface-2); border:none; border-radius:9px; padding:9px 12px; }
+  .notes-form button{ background:var(--ink); color:#fff; border:none; font-size:12px; font-weight:600; padding:9px 16px; border-radius:9px; cursor:pointer; }
+  .notes-form button:hover{ background:var(--accent); }
+  .notes-list{ display:flex; flex-direction:column; gap:8px; }
+  .note-row{ display:flex; align-items:flex-start; gap:12px; padding:12px 14px; background:var(--surface-2); border-radius:12px; }
+  .note-row .note-date{ font-family:'Space Grotesk', sans-serif; font-weight:700; font-size:12.5px; color:var(--accent); flex-shrink:0; width:78px; }
+  .note-row .note-text{ flex:1; font-size:12.5px; color:var(--ink); line-height:1.5; }
+  .note-row .note-del{ background:none; border:none; color:var(--ink-faint); cursor:pointer; font-size:15px; flex-shrink:0; }
+  .note-row .note-del:hover{ color:var(--red); }
+  .notes-empty{ font-size:12.5px; color:var(--ink-faint); }
+  .notes-hint{ font-size:11px; color:var(--ink-faint); margin-top:10px; }
   @media (max-width: 980px){
     .kpi-grid{ grid-template-columns:repeat(2,1fr); }
     .grid-2{ grid-template-columns:1fr; }
@@ -120,10 +171,8 @@
 </div>
 
 <script>
-Chart.defaults.color = '#6B7280';
 Chart.defaults.font.family = "'Inter', sans-serif";
 Chart.defaults.font.size = 11;
-const gridColor = 'rgba(20,22,28,0.06)';
 
 // Garante que o eixo X sempre mostre o primeiro e o último dia,
 // distribuindo os rótulos do meio de forma uniforme (em vez do autoSkip
@@ -145,11 +194,95 @@ const initials = name => (name||'?').split(' ').map(w=>w[0]).slice(0,2).join('')
 
 let currentRange = { from: null, to: null }; // null = padrão (últimos 30 dias)
 
+function getStoredTheme(){
+  try { return localStorage.getItem('ig-dashboard-theme') || 'light'; } catch(e){ return 'light'; }
+}
+function applyTheme(theme){
+  document.documentElement.setAttribute('data-theme', theme);
+  try { localStorage.setItem('ig-dashboard-theme', theme); } catch(e){}
+}
+function toggleTheme(){
+  const next = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+  applyTheme(next);
+  if (window.__lastData) render(window.__lastData);
+}
+function themeColors(){
+  const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+  return {
+    text: isDark ? '#9AA1AE' : '#6B7280',
+    grid: isDark ? 'rgba(255,255,255,0.07)' : 'rgba(20,22,28,0.06)',
+  };
+}
+applyTheme(getStoredTheme());
+
+function escapeHTML(str){
+  const div = document.createElement('div');
+  div.textContent = str == null ? '' : str;
+  return div.innerHTML;
+}
+
+function toggleCaption(id, btn){
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.classList.toggle('expanded');
+  btn.textContent = el.classList.contains('expanded') ? 'ver menos' : 'ver mais';
+}
+
+function handleThumbError(img){
+  img.parentElement.innerHTML = '<div class="no-thumb">Sem imagem</div>';
+}
+
+const NOTES_KEY = 'ig-dashboard-notes';
+
+function loadNotes(){
+  try { return JSON.parse(localStorage.getItem(NOTES_KEY) || '[]'); } catch(e){ return []; }
+}
+function saveNotes(notes){
+  try { localStorage.setItem(NOTES_KEY, JSON.stringify(notes)); } catch(e){}
+}
+function addNote(){
+  const dateEl = document.getElementById('noteDate');
+  const textEl = document.getElementById('noteText');
+  const date = dateEl.value;
+  const text = textEl.value.trim();
+  if (!date || !text){ alert('Preencha a data e o texto da anotação.'); return; }
+  const notes = loadNotes();
+  notes.push({ id: Date.now().toString(36), date, text });
+  saveNotes(notes);
+  textEl.value = '';
+  renderNotes();
+}
+function deleteNote(id){
+  saveNotes(loadNotes().filter(n => n.id !== id));
+  renderNotes();
+}
+function renderNotes(){
+  const list = document.getElementById('notesList');
+  if (!list) return;
+  const notes = loadNotes().sort((a,b) => b.date.localeCompare(a.date));
+  list.innerHTML = notes.length
+    ? notes.map(n => `
+        <div class="note-row">
+          <div class="note-date">${new Date(n.date+'T00:00:00').toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',year:'numeric'})}</div>
+          <div class="note-text">${escapeHTML(n.text)}</div>
+          <button class="note-del" onclick="deleteNote('${n.id}')" title="Excluir">✕</button>
+        </div>
+      `).join('')
+    : '<div class="notes-empty">Nenhuma anotação ainda.</div>';
+}
+
 function toISODate(d){
   const y = d.getFullYear();
   const m = String(d.getMonth() + 1).padStart(2, '0');
   const day = String(d.getDate()).padStart(2, '0');
   return `${y}-${m}-${day}`;
+}
+
+function compareChipHTML(pct){
+  if (pct === null || pct === undefined) return '<div class="compare-note">sem período anterior p/ comparar</div>';
+  const cls = pct > 0.5 ? 'up' : pct < -0.5 ? 'down' : 'flat';
+  const arrow = cls === 'up' ? '↑' : cls === 'down' ? '↓' : '→';
+  return `<div class="compare-chip ${cls}">${arrow} ${Math.abs(pct).toFixed(1)}% vs. período anterior</div>`;
 }
 
 function periodLabel(period, dayCount){
@@ -198,8 +331,12 @@ function applyCustomRange(){
 }
 
 function render(data){
-  const { profile, period, daily, topPosts, topByRate, mediaTypeBreakdown, bestTimes, audience, stories, totals, avgEngagementRate, generatedAt } = data;
+  const { profile, period, comparison, daily, timeline, topPosts, topByRate, mediaTypeBreakdown, bestTimes, audience, stories, totals, avgEngagementRate, generatedAt } = data;
   window.__currentUsername = profile.username || 'instagram';
+  window.__lastData = data;
+  const colors = themeColors();
+  Chart.defaults.color = colors.text;
+  const gridColor = colors.grid;
   const rangeDays = currentRange.from && currentRange.to
     ? Math.round((new Date(currentRange.to) - new Date(currentRange.from)) / 86400000) + 1
     : 30;
@@ -224,7 +361,10 @@ function render(data){
         </div>
       </div>
       <div class="header-actions">
-        <button class="export-btn" id="exportBtn" onclick="exportPDF()">⬇ Exportar PDF</button>
+        <div style="display:flex; gap:8px;">
+          <button class="theme-toggle" onclick="toggleTheme()" title="Alternar tema claro/escuro">${document.documentElement.getAttribute('data-theme')==='dark' ? '☀️' : '🌙'}</button>
+          <button class="export-btn" id="exportBtn" onclick="exportPDF()">⬇ Exportar PDF</button>
+        </div>
         <div class="profile-stats">
           <div><div class="num">${profile.followers.toLocaleString('pt-BR')}</div><div class="lbl">Seguidores</div></div>
           <div><div class="num">${profile.following.toLocaleString('pt-BR')}</div><div class="lbl">Seguindo</div></div>
@@ -250,12 +390,13 @@ function render(data){
     </div>
 
     <div class="kpi-grid">
-      <div class="kpi"><div class="lbl">Novos seguidores</div><div class="val">+${totals.newFollowers.toLocaleString('pt-BR')}</div><div class="sub">no período</div></div>
-      <div class="kpi"><div class="lbl">Alcance total</div><div class="val">${fmtCompact(totals.reach)}</div><div class="sub">contas únicas</div></div>
+      <div class="kpi"><div class="lbl">Novos seguidores</div><div class="val">+${totals.newFollowers.toLocaleString('pt-BR')}</div><div class="sub">no período</div>${compareChipHTML(comparison?.newFollowersPct)}</div>
+      <div class="kpi"><div class="lbl">Alcance total</div><div class="val">${fmtCompact(totals.reach)}</div><div class="sub">contas únicas</div>${compareChipHTML(comparison?.reachPct)}</div>
       <div class="kpi">
         <div class="lbl">Interações totais</div>
         <div class="val">${fmtCompact(totals.interactions)}</div>
         <div class="sub">curtidas, coment., salvos, compart.</div>
+        ${compareChipHTML(comparison?.interactionsPct)}
         <div class="breakdown">
           <div class="b-row"><div class="b-label"><span class="b-dot" style="background:#3452FF;"></span>Curtidas</div><div class="b-val">${fmtCompact(totals.likes)}</div></div>
           <div class="b-row"><div class="b-label"><span class="b-dot" style="background:#C4C9D4;"></span>Comentários</div><div class="b-val">${fmtCompact(totals.comments)}</div></div>
@@ -263,7 +404,7 @@ function render(data){
           <div class="b-row"><div class="b-label"><span class="b-dot" style="background:#FF5A36;"></span>Compartilhamentos</div><div class="b-val">${fmtCompact(totals.shares)}</div></div>
         </div>
       </div>
-      <div class="kpi"><div class="lbl">Engajamento médio</div><div class="val">${avgEngagementRate.toFixed(1)}%</div><div class="sub">interações ÷ alcance diário</div></div>
+      <div class="kpi"><div class="lbl">Engajamento médio</div><div class="val">${avgEngagementRate.toFixed(1)}%</div><div class="sub">interações ÷ alcance diário</div>${compareChipHTML(comparison?.engagementRatePct)}</div>
     </div>
 
     <div class="grid-2">
@@ -305,6 +446,12 @@ function render(data){
       <div class="type-cards" id="typeCards"></div>
     </div>
 
+    <div class="section-title">Linha do tempo de publicações</div>
+    <div class="section-desc">Todos os posts do período em ordem cronológica, com miniatura</div>
+    <div class="card">
+      <div class="timeline-scroll" id="timelineScroll"></div>
+    </div>
+
     <div class="grid-2">
       <div class="card">
         <h3>Demografia do público</h3>
@@ -322,6 +469,18 @@ function render(data){
     <div class="card">
       <h3>Principais países dos seguidores</h3>
       <div id="countryBars"></div>
+    </div>
+
+    <div class="section-title">Anotações</div>
+    <div class="section-desc">Marque datas importantes — campanhas, lançamentos, eventos — pra cruzar com os gráficos depois</div>
+    <div class="card">
+      <div class="notes-form">
+        <input type="date" id="noteDate">
+        <input type="text" id="noteText" placeholder="Ex: Lancei campanha de Reels sobre Londres">
+        <button onclick="addNote()">Adicionar</button>
+      </div>
+      <div class="notes-list" id="notesList"></div>
+      <div class="notes-hint">As anotações ficam salvas apenas neste navegador/dispositivo — não são compartilhadas com quem mais acessa o link.</div>
     </div>
 
     <div class="footer-note">Dados ao vivo via Windsor.ai (conector Instagram) · @${profile.username}</div>
@@ -360,11 +519,15 @@ function render(data){
                y:{ stacked:true, grid:{ color:gridColor }, ticks:{ callback:v=>fmtCompact(v) } } } }
   });
 
-  const postCardHTML = (p, i, showRate) => `
+  const postCardHTML = (p, i, showRate, section) => {
+    const capId = `cap-${section}-${i}`;
+    const needsToggle = p.caption.length > 90;
+    return `
     <a class="post-card" href="${p.url}" target="_blank" rel="noopener">
       <div class="post-rank">#${i+1} · ${new Date(p.date).toLocaleDateString('pt-BR')}</div>
       <div class="post-type">${p.type}</div>
-      <div class="post-caption">${p.caption}</div>
+      <div class="post-caption" id="${capId}">${escapeHTML(p.caption).replace(/\n/g,'<br>')}</div>
+      ${needsToggle ? `<button class="caption-toggle" onclick="event.preventDefault(); toggleCaption('${capId}', this);">ver mais</button>` : ''}
       <div class="post-metrics">
         ${showRate ? `<div class="m"><span>Taxa de engaj.</span><span>${p.engagementRate.toFixed(1)}%</span></div>` : `<div class="m"><span>Engajamento</span><span>${fmtCompact(p.engagement)}</span></div>`}
         <div class="m"><span>Curtidas</span><span>${fmtCompact(p.likes)}</span></div>
@@ -374,10 +537,11 @@ function render(data){
       </div>
     </a>
   `;
+  };
 
-  document.getElementById('topPosts').innerHTML = topPosts.map((p,i) => postCardHTML(p, i, false)).join('');
+  document.getElementById('topPosts').innerHTML = topPosts.map((p,i) => postCardHTML(p, i, false, 'top')).join('');
   document.getElementById('topByRate').innerHTML = topByRate.length
-    ? topByRate.map((p,i) => postCardHTML(p, i, true)).join('')
+    ? topByRate.map((p,i) => postCardHTML(p, i, true, 'rate')).join('')
     : '<div class="section-desc">Sem posts com alcance suficiente no período.</div>';
 
   // Tipos de mídia
@@ -417,6 +581,26 @@ function render(data){
   document.getElementById('ageBars').innerHTML = `<div class="desc" style="margin-bottom:8px;">Faixa etária</div>` + barRows(audience?.age);
   document.getElementById('genderBars').innerHTML = `<div class="desc" style="margin-bottom:8px;">Gênero</div>` + barRows(audience?.gender);
   document.getElementById('countryBars').innerHTML = barRows(audience?.country);
+
+  // Timeline de posts com miniatura
+  document.getElementById('timelineScroll').innerHTML = (timeline||[]).length
+    ? timeline.map(p => `
+        <a class="timeline-item" href="${p.url}" target="_blank" rel="noopener">
+          <div class="timeline-thumb">
+            ${p.thumbnail
+              ? `<img src="${p.thumbnail}" alt="" loading="lazy" onerror="handleThumbError(this)">`
+              : `<div class="no-thumb">Sem imagem</div>`}
+            <span class="tl-badge">${typeLabel(p.type)}</span>
+          </div>
+          <div class="timeline-meta">
+            <div class="tl-date">${new Date(p.date).toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'})}</div>
+            <div class="tl-reach">${fmtCompact(p.reach)} alcance</div>
+          </div>
+        </a>
+      `).join('')
+    : '<div class="section-desc">Sem posts no período.</div>';
+
+  renderNotes();
 }
 
 load();
@@ -428,7 +612,7 @@ async function exportPDF(){
   btn.innerHTML = 'Gerando PDF…';
 
   // esconde os botões de ação para não aparecerem no PDF
-  const controls = document.querySelectorAll('.export-btn, .refresh-btn');
+  const controls = document.querySelectorAll('.export-btn, .refresh-btn, .theme-toggle');
   controls.forEach(el => el.style.visibility = 'hidden');
 
   try {

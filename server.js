@@ -79,12 +79,12 @@ async function buildMetrics(dateFrom, dateTo) {
     }))
     .sort((a, b) => new Date(a.date) - new Date(b.date));
 
-  // 3. Todos os posts do período (usado para top posts, tipo de mídia e melhor horário)
+  // 3. Todos os posts do período (usado para top posts, tipo de mídia, timeline e melhor horário)
   const mediaRows = await fetchWindsor(
     [
       'media_id', 'media_caption', 'media_type', 'media_permalink', 'timestamp',
       'media_like_count', 'media_comments_count', 'media_reach', 'media_views',
-      'media_saved', 'media_shares', 'media_engagement',
+      'media_saved', 'media_shares', 'media_engagement', 'media_url', 'media_thumbnail_url',
     ],
     { ...rangeParams, date_filters: JSON.stringify({ media_info: 'timestamp' }) }
   );
@@ -92,9 +92,10 @@ async function buildMetrics(dateFrom, dateTo) {
   const allPosts = mediaRows.map(r => {
     const reach = Number(r.media_reach) || 0;
     const engagement = Number(r.media_engagement) || 0;
+    const isVideoLike = r.media_type === 'REELS' || r.media_type === 'VIDEO';
     return {
       id: r.media_id,
-      caption: (r.media_caption || '').split('\n')[0].slice(0, 90) || '(sem legenda)',
+      caption: (r.media_caption || '').trim() || '(sem legenda)',
       type: r.media_type,
       url: r.media_permalink,
       date: r.timestamp,
@@ -106,6 +107,7 @@ async function buildMetrics(dateFrom, dateTo) {
       shares: Number(r.media_shares) || 0,
       engagement,
       engagementRate: reach ? (engagement / reach) * 100 : 0,
+      thumbnail: (isVideoLike ? r.media_thumbnail_url : r.media_url) || r.media_thumbnail_url || r.media_url || null,
     };
   });
 
@@ -210,6 +212,61 @@ async function buildMetrics(dateFrom, dateTo) {
     ? (daily.reduce((acc, d) => acc + (d.reach ? (d.total / d.reach) * 100 : 0), 0) / daily.length)
     : 0;
 
+  // 9. Comparação com o período anterior (mesmo número de dias, imediatamente antes)
+  function addDaysStr(dateStr, days) {
+    const d = new Date(dateStr + 'T00:00:00Z');
+    d.setUTCDate(d.getUTCDate() + days);
+    return d.toISOString().slice(0, 10);
+  }
+  const periodFrom = dateFrom || (daily[0] && daily[0].date);
+  const periodTo = dateTo || (daily[daily.length - 1] && daily[daily.length - 1].date);
+  let comparison = null;
+  if (periodFrom && periodTo) {
+    const lengthDays = Math.round(
+      (new Date(periodTo + 'T00:00:00Z') - new Date(periodFrom + 'T00:00:00Z')) / 86400000
+    ) + 1;
+    const prevTo = addDaysStr(periodFrom, -1);
+    const prevFrom = addDaysStr(prevTo, -(lengthDays - 1));
+
+    const prevRows = await safeFetch(
+      ['date', 'reach_1d', 'total_interactions', 'follower_count_1d'],
+      { date_from: prevFrom, date_to: prevTo },
+      'período anterior'
+    );
+    const prevDaily = prevRows.map(r => ({
+      reach: Number(r.reach_1d) || 0,
+      total: Number(r.total_interactions) || 0,
+      followers: Number(r.follower_count_1d) || 0,
+    }));
+    const prevSum = key => prevDaily.reduce((a, d) => a + d[key], 0);
+    const prevTotals = {
+      reach: prevSum('reach'),
+      interactions: prevSum('total'),
+      newFollowers: prevSum('followers'),
+    };
+    const prevAvgEngagementRate = prevDaily.length
+      ? prevDaily.reduce((acc, d) => acc + (d.reach ? (d.total / d.reach) * 100 : 0), 0) / prevDaily.length
+      : 0;
+
+    // null = sem dado suficiente pra comparar (evita divisão por zero / número infinito)
+    const pct = (curr, prev) => {
+      if (!prevDaily.length) return null;
+      if (prev === 0) return curr === 0 ? 0 : null;
+      return ((curr - prev) / prev) * 100;
+    };
+
+    comparison = {
+      previousPeriod: { from: prevFrom, to: prevTo },
+      reachPct: pct(totals.reach, prevTotals.reach),
+      interactionsPct: pct(totals.interactions, prevTotals.interactions),
+      newFollowersPct: pct(totals.newFollowers, prevTotals.newFollowers),
+      engagementRatePct: pct(avgEngagementRate, prevAvgEngagementRate),
+    };
+  }
+
+  // 10. Timeline cronológica de posts (com miniatura)
+  const timeline = [...allPosts].sort((a, b) => new Date(a.date) - new Date(b.date));
+
   return {
     profile: {
       name: profile.account_name || profile.username || '',
@@ -220,10 +277,12 @@ async function buildMetrics(dateFrom, dateTo) {
       bio: profile.biography || '',
     },
     period: {
-      from: dateFrom || (daily[0] && daily[0].date) || null,
-      to: dateTo || (daily[daily.length - 1] && daily[daily.length - 1].date) || null,
+      from: periodFrom || null,
+      to: periodTo || null,
     },
+    comparison,
     daily,
+    timeline,
     topPosts,
     topByRate,
     mediaTypeBreakdown,
