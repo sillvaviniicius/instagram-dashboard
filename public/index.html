@@ -171,6 +171,19 @@
   .note-row .note-del:hover{ color:var(--red); }
   .notes-empty{ font-size:12.5px; color:var(--ink-faint); }
   .notes-hint{ font-size:11px; color:var(--ink-faint); margin-top:10px; }
+
+  /* Tráfego pago */
+  .ads-table-wrap{ overflow-x:auto; }
+  .ads-table{ width:100%; border-collapse:collapse; font-size:12.5px; min-width:640px; }
+  .ads-table th{ text-align:left; font-size:10.5px; text-transform:uppercase; letter-spacing:0.05em; color:var(--ink-faint); font-weight:700; padding:0 12px 10px; border-bottom:1px solid var(--line); white-space:nowrap; }
+  .ads-table td{ padding:12px 12px; border-bottom:1px solid var(--line); white-space:nowrap; }
+  .ads-table tr:last-child td{ border-bottom:none; }
+  .ads-table .camp-name{ font-weight:700; color:var(--ink); }
+  .ads-table .camp-account{ font-size:11px; color:var(--ink-faint); margin-top:2px; }
+  .status-pill{ display:inline-block; font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:0.04em; padding:3px 9px; border-radius:20px; }
+  .status-pill.active{ color:var(--mint); background:rgba(0,179,122,0.12); }
+  .status-pill.paused{ color:var(--ink-faint); background:var(--surface-2); }
+  .status-pill.other{ color:var(--coral); background:rgba(255,90,54,0.12); }
   @media (max-width: 980px){
     .kpi-grid{ grid-template-columns:repeat(2,1fr); }
     .grid-2{ grid-template-columns:1fr; }
@@ -205,6 +218,13 @@ function evenTicks(desiredCount){
   };
 }
 const fmtCompact = n => n>=1000 ? (n/1000).toFixed(n>=10000?0:1).replace('.0','')+'K' : n;
+function fmtCurrency(value, currency){
+  try {
+    return new Intl.NumberFormat('pt-BR', { style:'currency', currency: currency || 'BRL' }).format(value || 0);
+  } catch(e){
+    return `${currency || ''} ${(value||0).toFixed(2)}`;
+  }
+}
 const initials = name => (name||'?').split(' ').map(w=>w[0]).slice(0,2).join('').toUpperCase();
 
 let currentRange = { from: null, to: null }; // null = padrão (últimos 30 dias)
@@ -346,7 +366,7 @@ function applyCustomRange(){
 }
 
 function render(data){
-  const { profile, period, comparison, daily, timeline, topPosts, topByRate, mediaTypeBreakdown, bestTimes, audience, stories, totals, avgEngagementRate, generatedAt } = data;
+  const { profile, period, comparison, daily, timeline, ads, topPosts, topByRate, mediaTypeBreakdown, bestTimes, audience, stories, totals, avgEngagementRate, generatedAt } = data;
   window.__currentUsername = profile.username || 'instagram';
   window.__lastData = data;
   const colors = themeColors();
@@ -441,6 +461,15 @@ function render(data){
       <div class="chart-box"><canvas id="engagementChart"></canvas></div>
     </div>
 
+    <div class="section-title">Tráfego pago (Meta Ads)</div>
+    <div class="section-desc" id="adsSectionDesc">Campanhas de Facebook/Instagram Ads no período selecionado, somando todas as contas conectadas</div>
+    <div class="kpi-grid" id="adsKpis"></div>
+    <div class="card">
+      <h3>Campanhas</h3>
+      <div class="desc">Ordenado por investimento</div>
+      <div class="ads-table-wrap"><table class="ads-table" id="adsTable"></table></div>
+    </div>
+
     <div class="section-title">Top 5 publicações do período</div>
     <div class="section-desc">Ordenado por engajamento total &nbsp;·&nbsp; <button class="refresh-btn" onclick="load(true)">Atualizar agora</button></div>
     <div class="posts-grid" id="topPosts"></div>
@@ -533,6 +562,49 @@ function render(data){
       scales:{ x:{ stacked:true, grid:{ display:false }, afterBuildTicks:evenTicks(10), ticks:{ maxRotation:0 } },
                y:{ stacked:true, grid:{ color:gridColor }, ticks:{ callback:v=>fmtCompact(v) } } } }
   });
+
+  // Tráfego pago (Meta Ads)
+  const adsCampaigns = ads?.campaigns || [];
+  const adsTotals = ads?.totals || {};
+  const adsCurrency = ads?.currency || 'BRL';
+  const hasLeads = (adsTotals.leads || 0) > 0;
+
+  if (!adsCampaigns.length){
+    document.getElementById('adsKpis').innerHTML = `<div class="section-desc">Nenhuma campanha com veiculação encontrada nesse período (ou nenhuma conta de anúncios conectada).</div>`;
+    document.getElementById('adsTable').innerHTML = '';
+  } else {
+    document.getElementById('adsKpis').innerHTML = `
+      <div class="kpi"><div class="lbl">Investido</div><div class="val">${fmtCurrency(adsTotals.spend, adsCurrency)}</div><div class="sub">${adsCampaigns.length} campanha(s)</div></div>
+      <div class="kpi"><div class="lbl">Impressões</div><div class="val">${fmtCompact(adsTotals.impressions)}</div><div class="sub">${fmtCompact(adsTotals.reach)} contas alcançadas</div></div>
+      <div class="kpi"><div class="lbl">Cliques</div><div class="val">${fmtCompact(adsTotals.clicks)}</div><div class="sub">CTR médio ${adsTotals.avgCtr.toFixed(2)}%</div></div>
+      ${hasLeads
+        ? `<div class="kpi"><div class="lbl">Leads gerados</div><div class="val">${adsTotals.leads.toLocaleString('pt-BR')}</div><div class="sub">custo/lead ${fmtCurrency(adsTotals.costPerLead, adsCurrency)}</div></div>`
+        : `<div class="kpi"><div class="lbl">Custo por clique</div><div class="val">${fmtCurrency(adsTotals.avgCpc, adsCurrency)}</div><div class="sub">média do período</div></div>`}
+    `;
+
+    const statusClass = s => s === 'ACTIVE' ? 'active' : s === 'PAUSED' ? 'paused' : 'other';
+    const statusLabel = s => ({ ACTIVE:'Ativa', PAUSED:'Pausada' }[s] || (s || '—'));
+
+    document.getElementById('adsTable').innerHTML = `
+      <thead><tr>
+        <th>Campanha</th><th>Status</th><th>Investido</th><th>Impressões</th><th>Cliques</th><th>CTR</th><th>CPC</th>${hasLeads ? '<th>Leads</th>' : ''}
+      </tr></thead>
+      <tbody>
+        ${adsCampaigns.map(c => `
+          <tr>
+            <td><div class="camp-name">${escapeHTML(c.campaign)}</div><div class="camp-account">${escapeHTML(c.account)}</div></td>
+            <td><span class="status-pill ${statusClass(c.status)}">${statusLabel(c.status)}</span></td>
+            <td>${fmtCurrency(c.spend, adsCurrency)}</td>
+            <td>${fmtCompact(c.impressions)}</td>
+            <td>${fmtCompact(c.clicks)}</td>
+            <td>${c.ctr.toFixed(2)}%</td>
+            <td>${fmtCurrency(c.cpc, adsCurrency)}</td>
+            ${hasLeads ? `<td>${c.leads != null ? c.leads : '—'}</td>` : ''}
+          </tr>
+        `).join('')}
+      </tbody>
+    `;
+  }
 
   const postCardHTML = (p, i, showRate, section) => {
     const capId = `cap-${section}-${i}`;

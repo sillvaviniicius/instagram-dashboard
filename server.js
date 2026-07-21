@@ -36,6 +36,7 @@ app.use(checkAuth);
 // cache é feito por período (ver cacheStore mais abaixo)
 
 const BASE_URL = 'https://connectors.windsor.ai/instagram';
+const ADS_BASE_URL = 'https://connectors.windsor.ai/facebook';
 
 async function fetchWindsor(fields, extraParams = {}) {
   const params = new URLSearchParams({
@@ -54,12 +55,37 @@ async function fetchWindsor(fields, extraParams = {}) {
   return json.data || json;
 }
 
+async function fetchWindsorAds(fields, extraParams = {}) {
+  const params = new URLSearchParams({
+    api_key: WINDSOR_API_KEY,
+    fields: fields.join(','),
+    ...extraParams,
+  });
+  const url = `${ADS_BASE_URL}?${params.toString()}`;
+  const res = await fetch(url);
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Windsor.ai (facebook) respondeu ${res.status}: ${text}`);
+  }
+  const json = await res.json();
+  return json.data || json;
+}
+
 const WEEKDAYS_PT = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
 
 // Busca algo e devolve [] em caso de erro, sem derrubar o dashboard inteiro
 async function safeFetch(fields, extraParams, label) {
   try {
     return await fetchWindsor(fields, extraParams);
+  } catch (err) {
+    console.error(`[aviso] falha ao buscar "${label}":`, err.message);
+    return [];
+  }
+}
+
+async function safeFetchAds(fields, extraParams, label) {
+  try {
+    return await fetchWindsorAds(fields, extraParams);
   } catch (err) {
     console.error(`[aviso] falha ao buscar "${label}":`, err.message);
     return [];
@@ -285,7 +311,57 @@ async function buildMetrics(dateFrom, dateTo) {
     };
   }
 
-  // 10. Timeline cronológica de posts (com miniatura)
+  // 11. Tráfego pago (Meta Ads — Facebook/Instagram Ads) do período selecionado
+  const adsRows = await safeFetchAds(
+    [
+      'account_name', 'account_currency', 'campaign', 'campaign_status', 'objective',
+      'spend', 'impressions', 'clicks', 'reach', 'actions_lead',
+    ],
+    rangeParams,
+    'tráfego pago (Meta Ads)'
+  );
+  const adsCurrency = (adsRows[0] && adsRows[0].account_currency) || 'BRL';
+  const campaigns = adsRows
+    .map(r => {
+      const spend = Number(r.spend) || 0;
+      const impressions = Number(r.impressions) || 0;
+      const clicks = Number(r.clicks) || 0;
+      return {
+        account: r.account_name || '',
+        campaign: r.campaign || '(sem nome)',
+        status: r.campaign_status || '',
+        objective: r.objective || '',
+        spend,
+        impressions,
+        clicks,
+        ctr: impressions ? (clicks / impressions) * 100 : 0,
+        cpc: clicks ? spend / clicks : 0,
+        reach: Number(r.reach) || 0,
+        leads: r.actions_lead != null ? Number(r.actions_lead) : null,
+      };
+    })
+    .filter(c => c.spend > 0 || c.impressions > 0)
+    .sort((a, b) => b.spend - a.spend);
+
+  const adsTotalsRaw = {
+    spend: campaigns.reduce((a, c) => a + c.spend, 0),
+    impressions: campaigns.reduce((a, c) => a + c.impressions, 0),
+    clicks: campaigns.reduce((a, c) => a + c.clicks, 0),
+    reach: campaigns.reduce((a, c) => a + c.reach, 0),
+    leads: campaigns.reduce((a, c) => a + (c.leads || 0), 0),
+  };
+  const ads = {
+    currency: adsCurrency,
+    campaigns,
+    totals: {
+      ...adsTotalsRaw,
+      avgCtr: adsTotalsRaw.impressions ? (adsTotalsRaw.clicks / adsTotalsRaw.impressions) * 100 : 0,
+      avgCpc: adsTotalsRaw.clicks ? adsTotalsRaw.spend / adsTotalsRaw.clicks : 0,
+      costPerLead: adsTotalsRaw.leads ? adsTotalsRaw.spend / adsTotalsRaw.leads : null,
+    },
+  };
+
+  // 12. Timeline cronológica de posts (com miniatura)
   const timeline = [...allPosts].sort((a, b) => new Date(a.date) - new Date(b.date));
 
   return {
@@ -304,6 +380,7 @@ async function buildMetrics(dateFrom, dateTo) {
     comparison,
     daily,
     timeline,
+    ads,
     topPosts,
     topByRate,
     mediaTypeBreakdown,
