@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Dashboard Instagram</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
   :root{
     --bg:#0E1116; --surface:#171B22; --surface-2:#1E232C; --line:#2A2F3A;
@@ -57,6 +59,11 @@
   .state-msg{ text-align:center; padding:80px 20px; color:var(--text-muted); font-size:14px; }
   .refresh-btn{ background:var(--surface-2); border:1px solid var(--line); color:var(--text); font-size:12px; padding:8px 14px; border-radius:8px; cursor:pointer; }
   .refresh-btn:hover{ border-color:var(--gold); }
+  .refresh-btn:disabled{ opacity:0.6; cursor:wait; }
+  .export-btn{ background:var(--gold); border:1px solid var(--gold); color:#12151B; font-weight:600; font-size:12.5px; padding:9px 16px; border-radius:8px; cursor:pointer; display:inline-flex; align-items:center; gap:6px; }
+  .export-btn:hover{ filter:brightness(1.08); }
+  .export-btn:disabled{ opacity:0.6; cursor:wait; }
+  .header-actions{ display:flex; flex-direction:column; align-items:flex-end; gap:14px; }
   .grid-3{ display:grid; grid-template-columns:1fr 1fr 1fr; gap:16px; margin-bottom:16px; }
   .bar-row{ display:flex; align-items:center; gap:10px; margin-bottom:10px; font-size:12.5px; }
   .bar-row .bar-label{ width:76px; flex-shrink:0; color:var(--text-muted); }
@@ -112,6 +119,7 @@ async function load(force=false){
 
 function render(data){
   const { profile, daily, topPosts, topByRate, mediaTypeBreakdown, bestTimes, audience, stories, totals, avgEngagementRate, generatedAt } = data;
+  window.__currentUsername = profile.username || 'instagram';
   const labels = daily.map(d => {
     const dt = new Date(d.date);
     return `${String(dt.getDate()).padStart(2,'0')}/${String(dt.getMonth()+1).padStart(2,'0')}`;
@@ -128,10 +136,13 @@ function render(data){
           <div class="period-tag">Últimos 30 dias · atualizado ${new Date(generatedAt).toLocaleString('pt-BR')}</div>
         </div>
       </div>
-      <div class="profile-stats">
-        <div><div class="num">${profile.followers.toLocaleString('pt-BR')}</div><div class="lbl">Seguidores</div></div>
-        <div><div class="num">${profile.following.toLocaleString('pt-BR')}</div><div class="lbl">Seguindo</div></div>
-        <div><div class="num">${profile.posts.toLocaleString('pt-BR')}</div><div class="lbl">Publicações</div></div>
+      <div class="header-actions">
+        <button class="export-btn" id="exportBtn" onclick="exportPDF()">⬇ Exportar PDF</button>
+        <div class="profile-stats">
+          <div><div class="num">${profile.followers.toLocaleString('pt-BR')}</div><div class="lbl">Seguidores</div></div>
+          <div><div class="num">${profile.following.toLocaleString('pt-BR')}</div><div class="lbl">Seguindo</div></div>
+          <div><div class="num">${profile.posts.toLocaleString('pt-BR')}</div><div class="lbl">Publicações</div></div>
+        </div>
       </div>
     </div>
 
@@ -296,6 +307,58 @@ function render(data){
 }
 
 load();
+
+async function exportPDF(){
+  const btn = document.getElementById('exportBtn');
+  const exportBtnHTML = btn.innerHTML;
+  btn.disabled = true;
+  btn.innerHTML = 'Gerando PDF…';
+
+  // esconde os botões de ação para não aparecerem no PDF
+  const controls = document.querySelectorAll('.export-btn, .refresh-btn');
+  controls.forEach(el => el.style.visibility = 'hidden');
+
+  try {
+    const { jsPDF } = window.jspdf;
+    const element = document.getElementById('app');
+
+    const canvas = await html2canvas(element, {
+      backgroundColor: '#0E1116',
+      scale: 2,
+      useCORS: true,
+      windowWidth: element.scrollWidth,
+    });
+
+    const imgData = canvas.toDataURL('image/png');
+    const pdf = new jsPDF('p', 'mm', 'a4');
+    const pageWidth = pdf.internal.pageSize.getWidth();
+    const pageHeight = pdf.internal.pageSize.getHeight();
+    const imgWidth = pageWidth;
+    const imgHeight = (canvas.height * imgWidth) / canvas.width;
+
+    let heightLeft = imgHeight;
+    let position = 0;
+
+    pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+    heightLeft -= pageHeight;
+
+    while (heightLeft > 0) {
+      position = heightLeft - imgHeight;
+      pdf.addPage();
+      pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+      heightLeft -= pageHeight;
+    }
+
+    const dateStr = new Date().toISOString().slice(0, 10);
+    pdf.save(`dashboard-instagram-${window.__currentUsername}-${dateStr}.pdf`);
+  } catch (err) {
+    alert('Não foi possível gerar o PDF: ' + err.message);
+  } finally {
+    controls.forEach(el => el.style.visibility = 'visible');
+    btn.disabled = false;
+    btn.innerHTML = exportBtnHTML;
+  }
+}
 </script>
 </body>
 </html>
