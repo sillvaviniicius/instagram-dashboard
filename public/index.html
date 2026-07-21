@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard Instagram</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  :root{
+    --bg:#0E1116; --surface:#171B22; --surface-2:#1E232C; --line:#2A2F3A;
+    --gold:#C9A24B; --teal:#5B9C8E; --text:#F3F1EA; --text-muted:#8B93A1; --text-faint:#5C6472;
+    --radius:14px;
+  }
+  *{box-sizing:border-box;}
+  @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,500;9..144,600&family=Inter:wght@400;500;600;700&display=swap');
+  body{
+    margin:0; background: radial-gradient(1200px 600px at 10% -10%, rgba(201,162,75,0.07), transparent 60%), var(--bg);
+    color:var(--text); font-family:'Inter', sans-serif; padding:40px 24px 80px;
+  }
+  .wrap{ max-width:1180px; margin:0 auto; }
+  .header{ display:flex; align-items:center; justify-content:space-between; gap:24px; flex-wrap:wrap; padding-bottom:28px; margin-bottom:32px; border-bottom:1px solid var(--line); }
+  .profile{ display:flex; align-items:center; gap:18px; }
+  .avatar{ width:64px; height:64px; border-radius:50%; background:linear-gradient(135deg, var(--gold), #7A5F22); display:flex; align-items:center; justify-content:center; font-family:'Fraunces', serif; font-size:24px; font-weight:600; color:#12151B; flex-shrink:0; }
+  .profile h1{ font-family:'Fraunces', serif; font-weight:500; font-size:26px; margin:0 0 2px; }
+  .profile .handle{ color:var(--gold); font-weight:600; font-size:14px; }
+  .profile .bio{ color:var(--text-muted); font-size:13px; margin-top:4px; max-width:420px; line-height:1.5; }
+  .profile-stats{ display:flex; gap:28px; }
+  .profile-stats div{ text-align:right; }
+  .profile-stats .num{ font-family:'Fraunces', serif; font-size:22px; font-weight:600; }
+  .profile-stats .lbl{ font-size:11px; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.08em; }
+  .period-tag{ font-size:11px; color:var(--text-faint); text-transform:uppercase; letter-spacing:0.1em; margin-top:6px; }
+  .kpi-grid{ display:grid; grid-template-columns:repeat(4, 1fr); gap:16px; margin-bottom:32px; }
+  .kpi{ background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); padding:20px 22px; position:relative; overflow:hidden; }
+  .kpi::before{ content:''; position:absolute; top:0; left:0; width:3px; height:100%; background:var(--gold); opacity:0.7; }
+  .kpi .lbl{ font-size:12px; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.06em; margin-bottom:10px;}
+  .kpi .val{ font-family:'Fraunces', serif; font-size:30px; font-weight:600; line-height:1; }
+  .kpi .sub{ font-size:12.5px; color:var(--teal); margin-top:8px; font-weight:500; }
+  .grid-2{ display:grid; grid-template-columns: 1.4fr 1fr; gap:16px; margin-bottom:16px;}
+  .card{ background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); padding:24px; }
+  .card h3{ font-family:'Fraunces', serif; font-weight:500; font-size:17px; margin:0 0 4px; }
+  .card .desc{ font-size:12.5px; color:var(--text-muted); margin-bottom:18px; }
+  .chart-box{ position:relative; height:260px; }
+  .chart-box.tall{ height:300px; }
+  .section-title{ font-family:'Fraunces', serif; font-size:19px; font-weight:500; margin:36px 0 4px; }
+  .section-desc{ font-size:13px; color:var(--text-muted); margin-bottom:18px; }
+  .posts-grid{ display:grid; grid-template-columns:repeat(5, 1fr); gap:14px; }
+  .post-card{ background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); padding:16px; text-decoration:none; color:var(--text); display:flex; flex-direction:column; gap:10px; transition:border-color .15s ease, transform .15s ease; }
+  .post-card:hover{ border-color: var(--gold); transform:translateY(-2px); }
+  .post-rank{ font-family:'Fraunces', serif; font-size:13px; color:var(--gold); font-weight:600; }
+  .post-type{ display:inline-block; font-size:10px; text-transform:uppercase; letter-spacing:0.06em; color:var(--text-faint); background:var(--surface-2); padding:3px 8px; border-radius:20px; width:fit-content; }
+  .post-caption{ font-size:12px; color:var(--text-muted); line-height:1.4; min-height:34px; }
+  .post-metrics{ display:flex; flex-direction:column; gap:5px; margin-top:auto; padding-top:10px; border-top:1px solid var(--line); }
+  .post-metrics .m{ display:flex; justify-content:space-between; font-size:12px; }
+  .post-metrics .m span:first-child{ color:var(--text-faint); }
+  .post-metrics .m span:last-child{ font-weight:600; }
+  .footer-note{ margin-top:40px; font-size:11.5px; color:var(--text-faint); text-align:center; }
+  .state-msg{ text-align:center; padding:80px 20px; color:var(--text-muted); font-size:14px; }
+  .refresh-btn{ background:var(--surface-2); border:1px solid var(--line); color:var(--text); font-size:12px; padding:8px 14px; border-radius:8px; cursor:pointer; }
+  .refresh-btn:hover{ border-color:var(--gold); }
+  @media (max-width: 980px){
+    .kpi-grid{ grid-template-columns:repeat(2,1fr); }
+    .grid-2{ grid-template-columns:1fr; }
+    .posts-grid{ grid-template-columns:repeat(2,1fr); }
+    .header{ flex-direction:column; align-items:flex-start; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap" id="app">
+  <div class="state-msg">Carregando métricas…</div>
+</div>
+
+<script>
+Chart.defaults.color = '#8B93A1';
+Chart.defaults.font.family = "'Inter', sans-serif";
+Chart.defaults.font.size = 11;
+const gridColor = 'rgba(255,255,255,0.05)';
+const fmtCompact = n => n>=1000 ? (n/1000).toFixed(n>=10000?0:1).replace('.0','')+'K' : n;
+const initials = name => (name||'?').split(' ').map(w=>w[0]).slice(0,2).join('').toUpperCase();
+
+async function load(force=false){
+  const app = document.getElementById('app');
+  try{
+    const res = await fetch('/api/metrics' + (force ? '?refresh=1' : ''));
+    if(!res.ok) throw new Error('Erro ' + res.status);
+    const data = await res.json();
+    render(data);
+  }catch(err){
+    app.innerHTML = `<div class="state-msg">Não foi possível carregar os dados.<br>${err.message}<br><br>
+      <button class="refresh-btn" onclick="load(true)">Tentar novamente</button></div>`;
+  }
+}
+
+function render(data){
+  const { profile, daily, topPosts, totals, avgEngagementRate, generatedAt } = data;
+  const labels = daily.map(d => {
+    const dt = new Date(d.date);
+    return `${String(dt.getDate()).padStart(2,'0')}/${String(dt.getMonth()+1).padStart(2,'0')}`;
+  });
+
+  document.getElementById('app').innerHTML = `
+    <div class="header">
+      <div class="profile">
+        <div class="avatar">${initials(profile.name)}</div>
+        <div>
+          <h1>${profile.name || 'Conta do Instagram'}</h1>
+          <div class="handle">@${profile.username}</div>
+          <div class="bio">${profile.bio ? profile.bio.split('\\n')[0] : ''}</div>
+          <div class="period-tag">Últimos 30 dias · atualizado ${new Date(generatedAt).toLocaleString('pt-BR')}</div>
+        </div>
+      </div>
+      <div class="profile-stats">
+        <div><div class="num">${profile.followers.toLocaleString('pt-BR')}</div><div class="lbl">Seguidores</div></div>
+        <div><div class="num">${profile.following.toLocaleString('pt-BR')}</div><div class="lbl">Seguindo</div></div>
+        <div><div class="num">${profile.posts.toLocaleString('pt-BR')}</div><div class="lbl">Publicações</div></div>
+      </div>
+    </div>
+
+    <div class="kpi-grid">
+      <div class="kpi"><div class="lbl">Novos seguidores</div><div class="val">+${totals.newFollowers.toLocaleString('pt-BR')}</div><div class="sub">últimos 30 dias</div></div>
+      <div class="kpi"><div class="lbl">Alcance total</div><div class="val">${fmtCompact(totals.reach)}</div><div class="sub">contas únicas</div></div>
+      <div class="kpi"><div class="lbl">Interações totais</div><div class="val">${fmtCompact(totals.interactions)}</div><div class="sub">curtidas, coment., salvos, compart.</div></div>
+      <div class="kpi"><div class="lbl">Engajamento médio</div><div class="val">${avgEngagementRate.toFixed(1)}%</div><div class="sub">interações ÷ alcance diário</div></div>
+    </div>
+
+    <div class="grid-2">
+      <div class="card">
+        <h3>Alcance e visualizações por dia</h3>
+        <div class="desc">Contas alcançadas vs. conteúdo visualizado</div>
+        <div class="chart-box tall"><canvas id="reachChart"></canvas></div>
+      </div>
+      <div class="card">
+        <h3>Crescimento de seguidores</h3>
+        <div class="desc">Novos seguidores por dia</div>
+        <div class="chart-box tall"><canvas id="followersChart"></canvas></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>Composição do engajamento</h3>
+      <div class="desc">Curtidas, comentários, salvamentos e compartilhamentos</div>
+      <div class="chart-box"><canvas id="engagementChart"></canvas></div>
+    </div>
+
+    <div class="section-title">Top 5 publicações do período</div>
+    <div class="section-desc">Ordenado por engajamento total &nbsp;·&nbsp; <button class="refresh-btn" onclick="load(true)">Atualizar agora</button></div>
+    <div class="posts-grid" id="topPosts"></div>
+
+    <div class="footer-note">Dados ao vivo via Windsor.ai (conector Instagram) · @${profile.username}</div>
+  `;
+
+  new Chart(document.getElementById('reachChart'), {
+    type:'line',
+    data:{ labels, datasets:[
+      {label:'Alcance', data:daily.map(d=>d.reach), borderColor:'#C9A24B', backgroundColor:'rgba(201,162,75,0.12)', fill:true, tension:0.35, pointRadius:0, borderWidth:2},
+      {label:'Visualizações', data:daily.map(d=>d.views), borderColor:'#5B9C8E', backgroundColor:'transparent', fill:false, tension:0.35, pointRadius:0, borderWidth:2, borderDash:[4,3]}
+    ]},
+    options:{ responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{ labels:{ boxWidth:10, boxHeight:10, usePointStyle:true, pointStyle:'circle' } } },
+      scales:{ x:{ grid:{ display:false }, ticks:{ maxRotation:0, autoSkip:true, maxTicksLimit:8 } },
+               y:{ grid:{ color:gridColor }, ticks:{ callback:v=>fmtCompact(v) } } } }
+  });
+
+  new Chart(document.getElementById('followersChart'), {
+    type:'bar',
+    data:{ labels, datasets:[{ label:'Novos seguidores', data:daily.map(d=>d.followers), backgroundColor:'#C9A24B', borderRadius:4, maxBarThickness:14 }] },
+    options:{ responsive:true, maintainAspectRatio:false, plugins:{ legend:{ display:false } },
+      scales:{ x:{ grid:{ display:false }, ticks:{ maxRotation:0, autoSkip:true, maxTicksLimit:8 } }, y:{ grid:{ color:gridColor } } } }
+  });
+
+  new Chart(document.getElementById('engagementChart'), {
+    type:'bar',
+    data:{ labels, datasets:[
+      { label:'Curtidas', data:daily.map(d=>d.likes), backgroundColor:'#C9A24B', stack:'s' },
+      { label:'Salvamentos', data:daily.map(d=>d.saves), backgroundColor:'#5B9C8E', stack:'s' },
+      { label:'Compartilhamentos', data:daily.map(d=>d.shares), backgroundColor:'#8B93A1', stack:'s' },
+      { label:'Comentários', data:daily.map(d=>d.comments), backgroundColor:'#E3D6B4', stack:'s' }
+    ]},
+    options:{ responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{ labels:{ boxWidth:10, boxHeight:10, usePointStyle:true, pointStyle:'circle' } } },
+      scales:{ x:{ stacked:true, grid:{ display:false }, ticks:{ maxRotation:0, autoSkip:true, maxTicksLimit:10 } },
+               y:{ stacked:true, grid:{ color:gridColor }, ticks:{ callback:v=>fmtCompact(v) } } } }
+  });
+
+  document.getElementById('topPosts').innerHTML = topPosts.map((p,i) => `
+    <a class="post-card" href="${p.url}" target="_blank" rel="noopener">
+      <div class="post-rank">#${i+1} · ${new Date(p.date).toLocaleDateString('pt-BR')}</div>
+      <div class="post-type">${p.type}</div>
+      <div class="post-caption">${p.caption}</div>
+      <div class="post-metrics">
+        <div class="m"><span>Engajamento</span><span>${fmtCompact(p.engagement)}</span></div>
+        <div class="m"><span>Curtidas</span><span>${fmtCompact(p.likes)}</span></div>
+        <div class="m"><span>Alcance</span><span>${fmtCompact(p.reach)}</span></div>
+        <div class="m"><span>Visualizações</span><span>${fmtCompact(p.views)}</span></div>
+        <div class="m"><span>Salvos / Compart.</span><span>${p.saves} / ${p.shares}</span></div>
+      </div>
+    </a>
+  `).join('');
+}
+
+load();
+</script>
+</body>
+</html>
