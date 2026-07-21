@@ -39,6 +39,25 @@ Abra http://localhost:3000
 Alternativas equivalentes: **Railway.app**, **Fly.io**, ou **Vercel**
 (usando este server.js como uma função serverless).
 
+## Instalar como app no celular (PWA)
+
+O dashboard agora pode ser "instalado" na tela inicial do celular e abrir
+em tela cheia, como um app de verdade — sem precisar publicar em loja de
+aplicativos.
+
+**No Android (Chrome):**
+1. Abra o link do dashboard
+2. Toque nos três pontinhos (⋮) no canto superior direito
+3. Toque em **"Instalar app"** ou **"Adicionar à tela inicial"**
+
+**No iPhone (Safari):**
+1. Abra o link do dashboard
+2. Toque no ícone de compartilhar (□ com uma seta pra cima)
+3. Toque em **"Adicionar à Tela de Início"**
+
+Depois disso, um ícone aparece na tela inicial igual a qualquer outro app,
+abrindo o dashboard em tela cheia (sem a barra de endereço do navegador).
+
 ## Adicionar senha de acesso
 
 Por padrão o dashboard fica público para quem tiver o link. Se quiser
