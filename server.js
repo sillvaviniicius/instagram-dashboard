@@ -350,13 +350,69 @@ async function buildMetrics(dateFrom, dateTo) {
     reach: campaigns.reduce((a, c) => a + c.reach, 0),
     leads: campaigns.reduce((a, c) => a + (c.leads || 0), 0),
   };
+
+  // Investimento diário (para o gráfico), somando todas as contas/campanhas
+  const adsDailyRows = await safeFetchAds(['date', 'spend'], rangeParams, 'investimento diário (Meta Ads)');
+  const adsDaily = adsDailyRows
+    .map(r => ({ date: r.date, spend: Number(r.spend) || 0 }))
+    .filter(r => r.date)
+    .sort((a, b) => new Date(a.date) - new Date(b.date));
+
+  // Investimento por conta (Business Manager)
+  const accountGroups = {};
+  campaigns.forEach(c => {
+    const key = c.account || 'Conta sem nome';
+    if (!accountGroups[key]) accountGroups[key] = { account: key, spend: 0, impressions: 0, clicks: 0, leads: 0, campaignCount: 0 };
+    const g = accountGroups[key];
+    g.spend += c.spend;
+    g.impressions += c.impressions;
+    g.clicks += c.clicks;
+    g.leads += c.leads || 0;
+    g.campaignCount += 1;
+  });
+  const byAccount = Object.values(accountGroups).sort((a, b) => b.spend - a.spend);
+
+  // Custo por resultado, agrupado por objetivo de campanha
+  const objectiveGroups = {};
+  campaigns.forEach(c => {
+    const key = c.objective || 'OUTRO';
+    if (!objectiveGroups[key]) objectiveGroups[key] = { objective: key, spend: 0, clicks: 0, leads: 0, hasLeadData: false, campaignCount: 0 };
+    const g = objectiveGroups[key];
+    g.spend += c.spend;
+    g.clicks += c.clicks;
+    if (c.leads != null) { g.leads += c.leads; g.hasLeadData = true; }
+    g.campaignCount += 1;
+  });
+  const byObjective = Object.values(objectiveGroups).map(g => {
+    const useLeads = g.hasLeadData && g.leads > 0;
+    const resultCount = useLeads ? g.leads : g.clicks;
+    return {
+      objective: g.objective,
+      spend: g.spend,
+      campaignCount: g.campaignCount,
+      resultType: useLeads ? 'leads' : 'clicks',
+      resultCount,
+      costPerResult: resultCount ? g.spend / resultCount : null,
+    };
+  }).sort((a, b) => b.spend - a.spend);
+
   const ads = {
     currency: adsCurrency,
     campaigns,
+    daily: adsDaily,
+    byAccount,
+    byObjective,
+    organicVsPaid: {
+      organicReach: totals.reach,
+      paidReach: adsTotalsRaw.reach,
+      organicInteractions: totals.interactions,
+      paidClicks: adsTotalsRaw.clicks,
+    },
     totals: {
       ...adsTotalsRaw,
       avgCtr: adsTotalsRaw.impressions ? (adsTotalsRaw.clicks / adsTotalsRaw.impressions) * 100 : 0,
       avgCpc: adsTotalsRaw.clicks ? adsTotalsRaw.spend / adsTotalsRaw.clicks : 0,
+      avgFrequency: adsTotalsRaw.reach ? adsTotalsRaw.impressions / adsTotalsRaw.reach : 0,
       costPerLead: adsTotalsRaw.leads ? adsTotalsRaw.spend / adsTotalsRaw.leads : null,
     },
   };

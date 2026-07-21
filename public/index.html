@@ -75,6 +75,7 @@
   .period-apply{ background:var(--ink); color:#fff; border:none; font-size:12px; font-weight:600; padding:8px 14px; border-radius:9px; cursor:pointer; }
   .period-apply:hover{ background:var(--accent); }
   .kpi-grid{ display:grid; grid-template-columns:repeat(4, 1fr); gap:14px; margin-bottom:28px; }
+  .kpi-grid-auto{ grid-template-columns:repeat(auto-fit, minmax(200px,1fr)); }
   .kpi{ background:var(--surface); border-radius:var(--radius); padding:22px 22px 20px; box-shadow:var(--shadow); }
   .kpi .lbl{ display:flex; align-items:center; gap:7px; font-size:11.5px; color:var(--ink-muted); text-transform:uppercase; letter-spacing:0.06em; margin-bottom:12px; font-weight:600; }
   .kpi .lbl::before{ content:''; width:7px; height:7px; border-radius:50%; background:var(--accent); flex-shrink:0; }
@@ -184,6 +185,15 @@
   .status-pill.active{ color:var(--mint); background:rgba(0,179,122,0.12); }
   .status-pill.paused{ color:var(--ink-faint); background:var(--surface-2); }
   .status-pill.other{ color:var(--coral); background:rgba(255,90,54,0.12); }
+  .ovp-compare{ display:flex; flex-direction:column; gap:16px; }
+  .ovp-row{ display:flex; flex-direction:column; gap:6px; }
+  .ovp-row .ovp-label{ display:flex; justify-content:space-between; font-size:12px; color:var(--ink-muted); font-weight:600; }
+  .ovp-row .ovp-track{ display:flex; height:22px; border-radius:8px; overflow:hidden; background:var(--surface-2); }
+  .ovp-row .ovp-organic{ background:var(--accent); }
+  .ovp-row .ovp-paid{ background:var(--coral); }
+  .ovp-legend{ display:flex; gap:16px; font-size:11.5px; color:var(--ink-muted); margin-top:4px; }
+  .ovp-legend span{ display:inline-flex; align-items:center; gap:5px; }
+  .ovp-legend .dot{ width:8px; height:8px; border-radius:50%; }
   @media (max-width: 980px){
     .kpi-grid{ grid-template-columns:repeat(2,1fr); }
     .grid-2{ grid-template-columns:1fr; }
@@ -463,7 +473,34 @@ function render(data){
 
     <div class="section-title">Tráfego pago (Meta Ads)</div>
     <div class="section-desc" id="adsSectionDesc">Campanhas de Facebook/Instagram Ads no período selecionado, somando todas as contas conectadas</div>
-    <div class="kpi-grid" id="adsKpis"></div>
+    <div class="kpi-grid kpi-grid-auto" id="adsKpis"></div>
+
+    <div class="grid-2">
+      <div class="card">
+        <h3>Investimento diário</h3>
+        <div class="desc">Total investido por dia, somando todas as contas</div>
+        <div class="chart-box"><canvas id="adsSpendChart"></canvas></div>
+      </div>
+      <div class="card">
+        <h3>Orgânico x Pago</h3>
+        <div class="desc">Alcance e interações/cliques do período, lado a lado</div>
+        <div class="ovp-compare" id="ovpCompare"></div>
+      </div>
+    </div>
+
+    <div class="grid-2">
+      <div class="card">
+        <h3>Investimento por conta</h3>
+        <div class="desc">Agrupado por Business Manager / conta de anúncios</div>
+        <div class="type-cards" id="accountCards"></div>
+      </div>
+      <div class="card">
+        <h3>Custo por resultado, por objetivo</h3>
+        <div class="desc">Custo por lead (quando há) ou por clique, conforme o objetivo de cada campanha</div>
+        <div class="type-cards" id="objectiveCards"></div>
+      </div>
+    </div>
+
     <div class="card">
       <h3>Campanhas</h3>
       <div class="desc">Ordenado por investimento</div>
@@ -568,19 +605,90 @@ function render(data){
   const adsTotals = ads?.totals || {};
   const adsCurrency = ads?.currency || 'BRL';
   const hasLeads = (adsTotals.leads || 0) > 0;
+  const objectiveLabel = o => ({
+    LINK_CLICKS:'Cliques no link', OUTCOME_LEADS:'Leads', OUTCOME_ENGAGEMENT:'Engajamento',
+    OUTCOME_AWARENESS:'Reconhecimento', OUTCOME_TRAFFIC:'Tráfego', OUTCOME_SALES:'Vendas',
+    CONVERSIONS:'Conversões', REACH:'Alcance', BRAND_AWARENESS:'Reconhecimento de marca',
+  }[o] || o || 'Sem objetivo');
 
   if (!adsCampaigns.length){
     document.getElementById('adsKpis').innerHTML = `<div class="section-desc">Nenhuma campanha com veiculação encontrada nesse período (ou nenhuma conta de anúncios conectada).</div>`;
     document.getElementById('adsTable').innerHTML = '';
+    document.getElementById('accountCards').innerHTML = '';
+    document.getElementById('objectiveCards').innerHTML = '';
+    document.getElementById('ovpCompare').innerHTML = '';
   } else {
     document.getElementById('adsKpis').innerHTML = `
       <div class="kpi"><div class="lbl">Investido</div><div class="val">${fmtCurrency(adsTotals.spend, adsCurrency)}</div><div class="sub">${adsCampaigns.length} campanha(s)</div></div>
       <div class="kpi"><div class="lbl">Impressões</div><div class="val">${fmtCompact(adsTotals.impressions)}</div><div class="sub">${fmtCompact(adsTotals.reach)} contas alcançadas</div></div>
       <div class="kpi"><div class="lbl">Cliques</div><div class="val">${fmtCompact(adsTotals.clicks)}</div><div class="sub">CTR médio ${adsTotals.avgCtr.toFixed(2)}%</div></div>
+      <div class="kpi"><div class="lbl">Frequência média</div><div class="val">${adsTotals.avgFrequency.toFixed(2)}x</div><div class="sub">vezes que a mesma pessoa viu o anúncio</div></div>
       ${hasLeads
         ? `<div class="kpi"><div class="lbl">Leads gerados</div><div class="val">${adsTotals.leads.toLocaleString('pt-BR')}</div><div class="sub">custo/lead ${fmtCurrency(adsTotals.costPerLead, adsCurrency)}</div></div>`
         : `<div class="kpi"><div class="lbl">Custo por clique</div><div class="val">${fmtCurrency(adsTotals.avgCpc, adsCurrency)}</div><div class="sub">média do período</div></div>`}
     `;
+
+    // Investimento diário
+    const adsDaily = ads?.daily || [];
+    new Chart(document.getElementById('adsSpendChart'), {
+      type:'line',
+      data:{
+        labels: adsDaily.map(d => { const dt = new Date(d.date); return `${String(dt.getDate()).padStart(2,'0')}/${String(dt.getMonth()+1).padStart(2,'0')}`; }),
+        datasets:[{ label:'Investido', data: adsDaily.map(d=>d.spend), borderColor:'#FF5A36', backgroundColor:'rgba(255,90,54,0.10)', fill:true, tension:0.35, pointRadius:0, borderWidth:2.5 }]
+      },
+      options:{ responsive:true, maintainAspectRatio:false,
+        plugins:{ legend:{ display:false }, tooltip:{ callbacks:{ label: ctx => fmtCurrency(ctx.parsed.y, adsCurrency) } } },
+        scales:{ x:{ grid:{ display:false }, afterBuildTicks:evenTicks(8), ticks:{ maxRotation:0 } },
+                 y:{ grid:{ color:gridColor }, ticks:{ callback:v=>fmtCurrency(v, adsCurrency) } } } }
+    });
+
+    // Orgânico x Pago
+    const ovp = ads?.organicVsPaid || {};
+    const reachMax = Math.max(ovp.organicReach||0, ovp.paidReach||0, 1);
+    const engMax = Math.max(ovp.organicInteractions||0, ovp.paidClicks||0, 1);
+    document.getElementById('ovpCompare').innerHTML = `
+      <div class="ovp-row">
+        <div class="ovp-label"><span>Alcance</span><span>${fmtCompact(ovp.organicReach)} orgânico · ${fmtCompact(ovp.paidReach)} pago</span></div>
+        <div class="ovp-track">
+          <div class="ovp-organic" style="width:${(ovp.organicReach/reachMax*100).toFixed(1)}%"></div>
+          <div class="ovp-paid" style="width:${(ovp.paidReach/reachMax*100).toFixed(1)}%"></div>
+        </div>
+      </div>
+      <div class="ovp-row">
+        <div class="ovp-label"><span>Interações / cliques</span><span>${fmtCompact(ovp.organicInteractions)} orgânico · ${fmtCompact(ovp.paidClicks)} pago</span></div>
+        <div class="ovp-track">
+          <div class="ovp-organic" style="width:${(ovp.organicInteractions/engMax*100).toFixed(1)}%"></div>
+          <div class="ovp-paid" style="width:${(ovp.paidClicks/engMax*100).toFixed(1)}%"></div>
+        </div>
+      </div>
+      <div class="ovp-legend">
+        <span><span class="dot" style="background:#3452FF;"></span>Orgânico (Instagram)</span>
+        <span><span class="dot" style="background:#FF5A36;"></span>Pago (Meta Ads)</span>
+      </div>
+    `;
+
+    // Investimento por conta
+    const byAccount = ads?.byAccount || [];
+    document.getElementById('accountCards').innerHTML = byAccount.map(a => `
+      <div class="type-card">
+        <div class="t-name">${escapeHTML(a.account)}</div>
+        <div class="t-row"><span>Investido</span><span>${fmtCurrency(a.spend, adsCurrency)}</span></div>
+        <div class="t-row"><span>Campanhas</span><span>${a.campaignCount}</span></div>
+        <div class="t-row"><span>Cliques</span><span>${fmtCompact(a.clicks)}</span></div>
+        ${a.leads > 0 ? `<div class="t-row"><span>Leads</span><span>${a.leads}</span></div>` : ''}
+      </div>
+    `).join('') || '<div class="section-desc">Sem dados suficientes.</div>';
+
+    // Custo por resultado, por objetivo
+    const byObjective = ads?.byObjective || [];
+    document.getElementById('objectiveCards').innerHTML = byObjective.map(o => `
+      <div class="type-card">
+        <div class="t-name">${objectiveLabel(o.objective)}</div>
+        <div class="t-row"><span>Investido</span><span>${fmtCurrency(o.spend, adsCurrency)}</span></div>
+        <div class="t-row"><span>${o.resultType === 'leads' ? 'Leads' : 'Cliques'}</span><span>${o.resultCount.toLocaleString('pt-BR')}</span></div>
+        <div class="t-row"><span>Custo/resultado</span><span>${o.costPerResult != null ? fmtCurrency(o.costPerResult, adsCurrency) : '—'}</span></div>
+      </div>
+    `).join('') || '<div class="section-desc">Sem dados suficientes.</div>';
 
     const statusClass = s => s === 'ACTIVE' ? 'active' : s === 'PAUSED' ? 'paused' : 'other';
     const statusLabel = s => ({ ACTIVE:'Ativa', PAUSED:'Pausada' }[s] || (s || '—'));
