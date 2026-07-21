@@ -43,6 +43,7 @@ async function fetchWindsor(fields, extraParams = {}) {
     api_key: WINDSOR_API_KEY,
     fields: fields.join(','),
     ...extraParams,
+    _cb: Date.now(), // evita o cache interno do Windsor.ai (até 6h por URL exata)
   });
   const url = `${BASE_URL}?${params.toString()}`;
   const res = await fetch(url);
@@ -60,6 +61,7 @@ async function fetchWindsorAds(fields, extraParams = {}) {
     api_key: WINDSOR_API_KEY,
     fields: fields.join(','),
     ...extraParams,
+    _cb: Date.now(), // evita o cache interno do Windsor.ai (até 6h por URL exata)
   });
   const url = `${ADS_BASE_URL}?${params.toString()}`;
   const res = await fetch(url);
