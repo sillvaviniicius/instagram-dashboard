@@ -456,6 +456,9 @@ function isValidDate(s) {
 }
 
 app.get('/api/metrics', async (req, res) => {
+  res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+  res.set('Pragma', 'no-cache');
+  res.set('Expires', '0');
   try {
     let { date_from, date_to, refresh } = req.query;
     if (date_from && !isValidDate(date_from)) date_from = undefined;

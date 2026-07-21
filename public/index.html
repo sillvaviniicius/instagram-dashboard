@@ -348,7 +348,8 @@ async function load(force=false){
       params.set('date_from', currentRange.from);
       params.set('date_to', currentRange.to);
     }
-    const res = await fetch('/api/metrics?' + params.toString());
+    params.set('_t', Date.now()); // evita cache de navegador/proxy intermediário
+    const res = await fetch('/api/metrics?' + params.toString(), { cache: 'no-store' });
     if(!res.ok) throw new Error('Erro ' + res.status);
     const data = await res.json();
     render(data);
